@@ -1,10 +1,11 @@
 import { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import * as LiveKitSDK from 'livekit-client';
-import { Bot, Plug, FileText, Mic, Settings, SlidersHorizontal, Plus, Phone, Trash, PhoneOff, CheckCircle, XCircle } from 'lucide-react';
+import { Bot, Plug, FileText, Mic, Settings, SlidersHorizontal, Plus, Phone, Trash, PhoneOff, CheckCircle, XCircle, Book } from 'lucide-react';
 import { Flex, Text, Button, Box, Grid, Card, Badge, Tabs, TextField, TextArea, Switch, RadioGroup, Select, Slider, Heading, Container, Separator, Spinner } from '@radix-ui/themes';
 import { AgentAudioVisualizerBar, type VisualizerState } from '../AgentAudioVisualizerBar';
 import { AgentWorkflowBuilder } from '../AgentWorkflowBuilder';
+import { KnowledgeBaseManager } from '../components/KnowledgeBaseManager';
 
 const API_BASE = 'http://localhost:8000';
 
@@ -39,10 +40,12 @@ export default function App() {
 	const [currentAgent, setCurrentAgent] = useState<any>(null);
 
 	// LiveKit State
+	const [activeTab, setActiveTab] = useState('instructions');
 	const [isCallActive, setIsCallActive] = useState(false);
 	const [isConnecting, setIsConnecting] = useState(false);
 	const [agentAudioTrack, setAgentAudioTrack] = useState<LiveKitSDK.RemoteAudioTrack | null>(null);
 	const [agentState, setAgentState] = useState<VisualizerState>('disconnected');
+	const [isLoading, setIsLoading] = useState(false);
 	const roomRef = useRef<LiveKitSDK.Room | null>(null);
 
 	const testConnection = async () => {
@@ -131,9 +134,9 @@ export default function App() {
 		}));
 	};
 
-	const createAgent = async () => {
+	const createAgent = async (silent: boolean = false) => {
 		if (!agentName.trim() || !instructions.trim()) {
-			alert('Name and instructions are required.');
+			if (!silent) alert('Name and instructions are required.');
 			return;
 		}
 
@@ -151,12 +154,13 @@ export default function App() {
 				temperature: stateCfg.temperature !== undefined ? parseFloat(stateCfg.temperature) : undefined,
 				max_tokens: stateCfg.max_tokens !== undefined ? parseInt(stateCfg.max_tokens) : undefined,
 				api_key: stateCfg.api_key || null,
-				additional_config: {}
+				additional_config: stateCfg
 			};
 		};
 
+		setIsLoading(true);
 		const agentConfig = {
-			name: agentName,
+			name: agentName.trim(),
 			instructions,
 			welcome_message: welcomeMessage ? "Hello! I'm here to help you." : null,
 			allow_interruption: allowInterruption,
@@ -170,15 +174,18 @@ export default function App() {
 			if (currentAgent) {
 				const response = await axios.put(`${API_BASE}/agents/${currentAgent.id}`, agentConfig);
 				setCurrentAgent(response.data);
-				alert('Agent updated successfully!');
+				if (!silent) alert('Agent updated successfully!');
 			} else {
 				const response = await axios.post(`${API_BASE}/agents`, agentConfig);
 				setCurrentAgent(response.data);
-				alert('Agent created successfully!');
+				if (!silent) alert('Agent created successfully!');
 			}
 			loadAgentsList();
 		} catch (error: any) {
-			alert('Failed to save agent: ' + (error.response?.data?.detail || error.message));
+			console.error('Failed to save agent', error);
+			if (!silent) alert('Failed to save agent: ' + (error.response?.data?.detail || error.message));
+		} finally {
+			setIsLoading(false);
 		}
 	};
 
@@ -186,6 +193,7 @@ export default function App() {
 		if (!currentAgent) return;
 		if (!confirm(`Are you sure you want to delete agent "${currentAgent.name}"?`)) return;
 
+		setIsLoading(true);
 		try {
 			await axios.delete(`${API_BASE}/agents/${currentAgent.id}`);
 			setCurrentAgent(null);
@@ -193,8 +201,12 @@ export default function App() {
 			alert('Agent deleted successfully');
 		} catch (error: any) {
 			alert('Failed to delete agent: ' + (error.response?.data?.detail || error.message));
+		} finally {
+			setIsLoading(false);
 		}
 	};
+
+	const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
 
 	const toggleCall = async () => {
 		if (!currentAgent) return;
@@ -211,6 +223,7 @@ export default function App() {
 			setIsCallActive(false);
 			setAgentAudioTrack(null);
 			setAgentState('disconnected');
+			setActiveNodeId(null);
 			roomRef.current = null;
 			return;
 		}
@@ -219,6 +232,10 @@ export default function App() {
 		setAgentState('connecting');
 
 		try {
+			// Auto-save the current configuration (Workflow, Instructions, etc.) to the database
+			// before starting the agent to ensure context is updated.
+			await createAgent(true);
+
 			const tokenResponse = await axios.get(`${API_BASE}/livekit/token?agent_name=${currentAgent.name}`);
 			const { token, url } = tokenResponse.data;
 
@@ -244,7 +261,31 @@ export default function App() {
 				setIsCallActive(false);
 				setAgentAudioTrack(null);
 				setAgentState('disconnected');
+				setActiveNodeId(null);
 				roomRef.current = null;
+			});
+			room.on(LiveKitSDK.RoomEvent.DataReceived, (payload, _participant) => {
+				const decoder = new TextDecoder();
+				const str = decoder.decode(payload);
+				try {
+					const data = JSON.parse(str);
+					if (data.type === 'node_highlight') {
+						console.log("Setting active node:", data.node_id);
+						setActiveNodeId(data.node_id);
+					} else if (data.type === 'end_call') {
+						console.log("Remote start: Processing end_call command from agent");
+						if (roomRef.current) {
+							roomRef.current.disconnect();
+						}
+						setIsCallActive(false);
+						setAgentAudioTrack(null);
+						setAgentState('disconnected');
+						setActiveNodeId(null);
+						roomRef.current = null;
+					}
+				} catch (e) {
+					// ignore non-json messages
+				}
 			});
 			room.on(LiveKitSDK.RoomEvent.ActiveSpeakersChanged, (speakers) => {
 				const isAgentSpeaking = speakers.some(s => !s.isLocal);
@@ -301,24 +342,33 @@ export default function App() {
 
 		return (
 			<Grid columns="2" gap="4" mt="3">
-				{visibleFields.map((f: any) => (
+				{visibleFields.map((f: any) => {
+					let optionsList: any[] = [];
+					if (f.options === 'models') optionsList = config.models || [];
+					else if (f.options === 'voice_options') optionsList = config.voice_options || [];
+					else if (Array.isArray(f.options)) optionsList = f.options.map((o: any) => ({ id: o, name: o }));
+
+					// Guarantee a robust initial selection value to prevent uncontrolled React DOM loops
+					const fallbackFirstItem = optionsList.length > 0 ? (optionsList[0].id || optionsList[0].value || optionsList[0]) : 'none';
+					const currentValue = providerConfigs[type]?.[f.name] || f.default || fallbackFirstItem;
+
+					return (
 					<Flex direction="column" gap="1" key={f.name}>
 						<Text size="2" weight="bold">{f.name.replace(/_/g, ' ')}</Text>
 						{f.type === 'select' && (
 							<Select.Root
-								value={providerConfigs[type]?.[f.name] || f.default || ''}
+								value={currentValue}
 								onValueChange={(val) => updateProviderConfig(type, f.name, val)}
 							>
-								<Select.Trigger />
+								<Select.Trigger placeholder={`Select ${f.name.replace('_', ' ')}...`} />
 								<Select.Content>
-									{(f.options === 'models' ? config.models || [] :
-										f.options === 'voice_options' ? config.voice_options || [] :
-											Array.isArray(f.options) ? f.options.map(o => ({ id: o, name: o })) : []
-									).map((opt: any) => (
+									{optionsList.length > 0 ? optionsList.map((opt: any) => (
 										<Select.Item key={opt.id || opt.value || opt} value={opt.id || opt.value || opt}>
 											{opt.name || opt} {opt.language ? `(${opt.language})` : ''}
 										</Select.Item>
-									))}
+									)) : (
+										<Select.Item value="none" disabled>No options available (Backend down)</Select.Item>
+									)}
 								</Select.Content>
 							</Select.Root>
 						)}
@@ -344,7 +394,8 @@ export default function App() {
 							/>
 						)}
 					</Flex>
-				))}
+					);
+				})}
 			</Grid>
 		);
 	};
@@ -360,7 +411,7 @@ export default function App() {
 							<Bot size={28} />
 							<Heading size="6">Agent Builder</Heading>
 						</Flex>
-						<Select.Root value={currentAgent?.id || 'new'} onValueChange={loadAgent}>
+						<Select.Root value={currentAgent?.id || 'new'} onValueChange={(val) => setTimeout(() => loadAgent(val), 0)}>
 							<Select.Trigger style={{ width: '250px' }} placeholder="Select an Agent to edit..." />
 							<Select.Content>
 								<Select.Item value="new"><Flex align="center" gap="2"><Plus size={14} /> Create New Agent...</Flex></Select.Item>
@@ -385,16 +436,17 @@ export default function App() {
 				<Separator size="4" />
 
 				{/* Main Content */}
-				<Grid columns={{ initial: '1', lg: '1fr 350px' }} gap="6">
+				<Grid columns={{ initial: '1', lg: activeTab === 'workflows' ? '1fr' : '1fr 350px' }} gap="6">
 
 					{/* Configuration Panel */}
 					<Box>
 						<Card size="3">
-							<Tabs.Root defaultValue="instructions">
+							<Tabs.Root value={activeTab} onValueChange={setActiveTab}>
 								<Tabs.List>
 									<Tabs.Trigger value="instructions"><Flex align="center" gap="2"><FileText size={16} /> Instructions</Flex></Tabs.Trigger>
 									<Tabs.Trigger value="models"><Flex align="center" gap="2"><Mic size={16} /> Models & Voice</Flex></Tabs.Trigger>
 									<Tabs.Trigger value="workflows"><Flex align="center" gap="2"><SlidersHorizontal size={16} /> Workflows</Flex></Tabs.Trigger>
+									<Tabs.Trigger value="knowledge"><Flex align="center" gap="2"><Book size={16} /> Knowledge Base</Flex></Tabs.Trigger>
 									<Tabs.Trigger value="actions"><Flex align="center" gap="2"><Settings size={16} /> Actions</Flex></Tabs.Trigger>
 								</Tabs.List>
 
@@ -447,7 +499,7 @@ export default function App() {
 												</Box>
 												<RadioGroup.Root value={selectedProviders.stt} onValueChange={(v) => setSelectedProviders(p => ({ ...p, stt: v }))}>
 													<Grid columns="2" gap="3">
-														{Object.entries(providers.stt).map(([key, p]) => (
+														{Object.entries(providers.stt).map(([key]) => (
 															<Card key={key} asChild variant={selectedProviders.stt === key ? 'classic' : 'surface'} size="1">
 																<label style={{ cursor: 'pointer' }}>
 																	<Flex align="center" justify="between" p="1">
@@ -470,7 +522,7 @@ export default function App() {
 												</Box>
 												<RadioGroup.Root value={selectedProviders.tts} onValueChange={(v) => setSelectedProviders(p => ({ ...p, tts: v }))}>
 													<Grid columns="2" gap="3">
-														{Object.entries(providers.tts).map(([key, p]) => (
+														{Object.entries(providers.tts).map(([key]) => (
 															<Card key={key} asChild variant={selectedProviders.tts === key ? 'classic' : 'surface'} size="1">
 																<label style={{ cursor: 'pointer' }}>
 																	<Flex align="center" justify="between" p="1">
@@ -493,7 +545,7 @@ export default function App() {
 												</Box>
 												<RadioGroup.Root value={selectedProviders.llm} onValueChange={(v) => setSelectedProviders(p => ({ ...p, llm: v }))}>
 													<Grid columns="2" gap="3">
-														{Object.entries(providers.llm).map(([key, p]) => (
+														{Object.entries(providers.llm).map(([key]) => (
 															<Card key={key} asChild variant={selectedProviders.llm === key ? 'classic' : 'surface'} size="1">
 																<label style={{ cursor: 'pointer' }}>
 																	<Flex align="center" justify="between" p="1">
@@ -517,12 +569,20 @@ export default function App() {
 										</Flex>
 									</Tabs.Content>
 
+									<Tabs.Content value="knowledge">
+										<Box pt="4">
+											<KnowledgeBaseManager />
+										</Box>
+									</Tabs.Content>
+
 									<Tabs.Content value="workflows">
 										<Flex direction="column" gap="4">
 											<Text size="3" color="gray">Visually blueprint custom step-by-step logic workflows. Design explicit sequence funnels, dynamic queries, and fallbacks.</Text>
 											<AgentWorkflowBuilder
-												initialNodesData={currentAgent?.config?.workflows}
+												initialNodesData={workflowsPayload || currentAgent?.config?.workflows}
 												onSaveData={setWorkflowsPayload}
+												activeNodeId={activeNodeId}
+												agentId={currentAgent?.id}
 											/>
 										</Flex>
 									</Tabs.Content>
@@ -532,9 +592,10 @@ export default function App() {
 					</Box>
 
 					{/* Live Preview Panel */}
-					<Box>
-						<Card size="3">
-							<Heading size="4" mb="4">Live Preview</Heading>
+					{activeTab !== 'workflows' && (
+						<Box>
+							<Card size="3">
+								<Heading size="4" mb="4">Live Preview</Heading>
 
 							<Flex direction="column" gap="4">
 								<Box>
@@ -552,16 +613,16 @@ export default function App() {
 								</Card>
 
 								<Flex direction="column" gap="2">
-									<Button onClick={createAgent}>
+									<Button onClick={() => createAgent()} loading={isLoading}>
 										<Plus size={16} /> {currentAgent ? 'Update Agent' : 'Create Agent'}
 									</Button>
-									<Button color={isCallActive ? 'red' : 'green'} disabled={!currentAgent || isConnecting} onClick={toggleCall} variant={isCallActive ? "soft" : "solid"}>
+									<Button color={isCallActive ? 'red' : 'green'} disabled={!currentAgent || isConnecting || isLoading} onClick={toggleCall} variant={isCallActive ? "soft" : "solid"}>
 										<Spinner loading={isConnecting}>
 											{isCallActive ? <PhoneOff size={16} /> : <Phone size={16} />}
 										</Spinner>
 										{isCallActive ? 'End Call' : 'Start Call'}
 									</Button>
-									<Button color="red" variant="soft" disabled={!currentAgent} onClick={deleteAgent}>
+									<Button color="red" variant="soft" disabled={!currentAgent || isLoading} onClick={deleteAgent} loading={isLoading}>
 										<Trash size={16} /> Delete Agent
 									</Button>
 								</Flex>
@@ -583,7 +644,8 @@ export default function App() {
 								)}
 							</Flex>
 						</Card>
-					</Box>
+						</Box>
+					)}
 
 				</Grid>
 			</Flex>

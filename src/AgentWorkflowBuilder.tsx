@@ -8,51 +8,159 @@ import {
     useEdgesState,
     addEdge,
     BackgroundVariant,
-    Panel
+    Panel,
+    ReactFlowProvider,
+    useReactFlow
 } from '@xyflow/react';
 import type { Connection, Edge, Node } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Card, Flex, Text, Button, Box, Heading, TextField, TextArea, DropdownMenu } from '@radix-ui/themes';
-import { Plus, Route, Activity, HandMetal, Settings2 } from 'lucide-react';
+import { Handle, Position } from '@xyflow/react';
+import { Plus, Route, Activity, HandMetal, Settings2, PhoneOff, User } from 'lucide-react';
 
 const initialNodes: Node[] = [
     {
         id: 'start',
-        type: 'input',
+        type: 'customTask',
         data: { label: 'Start Session' },
         position: { x: 250, y: 50 },
-        style: { backgroundColor: 'var(--green-3)', borderColor: 'var(--green-8)', color: 'var(--green-11)', fontWeight: 'bold', padding: '10px 20px', borderRadius: '8px' },
     }
 ];
 
 const initialEdges: Edge[] = [];
 
-// We removed abstract Condition shapes since routing is handled via Edge Labels between regular generic Task blocks.
-const nodeTypes = {};
+const TaskNode = ({ id, data, selected }: any) => {
+    const isEnd = data.type === 'end' || data.type === 'output' || id === 'end';
+    const isStart = data.id === 'start' || id === 'start';
+    
+    // Icon mapping
+    let Icon = Activity;
+    if (isEnd) Icon = PhoneOff;
+    else if (data.type === 'handoff') Icon = HandMetal;
+    else if (data.type === 'question') Icon = User;
+    
+    const borderColor = selected ? 'var(--accent-8)' : 'var(--gray-5)';
+    
+    // Icon color handling
+    const iconBgColor = isStart ? 'var(--green-3)' : isEnd ? 'var(--red-3)' : 'var(--accent-3)';
+    const iconColor = isStart ? 'var(--green-11)' : isEnd ? 'var(--red-11)' : 'var(--accent-11)';
+
+    return (
+        <div style={{
+            position: 'relative',
+            padding: 0,
+            borderRadius: '12px',
+            border: `2px solid ${borderColor}`,
+            width: '320px',
+            backgroundColor: 'var(--color-surface)',
+            boxShadow: selected ? '0 0 0 1px var(--accent-8), 0 4px 12px var(--black-a2)' : 'var(--shadow-2)',
+            display: 'flex',
+            flexDirection: 'column'
+        }}>
+            {/* Connection Handles */}
+            {!isStart && <Handle type="target" position={Position.Top} style={{ background: 'var(--accent-9)', border: 'none', width: '10px', height: '10px', top: '-6px' }} />}
+            {!isEnd && <Handle type="source" position={Position.Bottom} style={{ background: 'var(--accent-9)', border: 'none', width: '10px', height: '10px', bottom: '-6px' }} />}
+            
+            <div style={{ borderRadius: '10px', overflow: 'hidden', display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
+                {/* Header */}
+                <Flex justify="between" align="center" style={{ padding: '12px 16px', backgroundColor: 'var(--gray-2)', borderBottom: '1px solid var(--gray-5)' }}>
+                    <Flex align="center" gap="3">
+                        <Box style={{ backgroundColor: iconBgColor, padding: '6px', borderRadius: '6px' }}>
+                            <Icon size={16} color={iconColor} />
+                        </Box>
+                        <Text size="3" weight="bold" style={{ color: 'var(--gray-12)' }}>
+                            {data.label || 'Task Node'}
+                        </Text>
+                    </Flex>
+                    <Settings2 size={16} color="var(--gray-8)" style={{ cursor: 'pointer' }} />
+                </Flex>
+                
+                {/* Body */}
+                <Flex direction="column" gap="2" style={{ padding: '16px', flexGrow: 1 }}>
+                    <Text size="1" weight="bold" color="gray" style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Prompt
+                    </Text>
+                    <Text size="2" style={{ lineHeight: '1.6', color: 'var(--gray-11)', whiteSpace: 'pre-wrap' }}>
+                        {data.description || 'No prompt defined. Open settings to configure instructions for the AI.'}
+                    </Text>
+                </Flex>
+            </div>
+        </div>
+    );
+};
+
+const nodeTypes = {
+    customTask: TaskNode,
+};
 
 interface AgentWorkflowBuilderProps {
     initialNodesData?: any;
     onSaveData?: (data: any) => void;
+    activeNodeId?: string | null;
+    agentId?: string | null;
 }
 
-export function AgentWorkflowBuilder({ initialNodesData, onSaveData }: AgentWorkflowBuilderProps) {
-    const [nodes, setNodes, onNodesChange] = useNodesState(initialNodesData?.nodes || initialNodes);
-    const [edges, setEdges, onEdgesChange] = useEdgesState(initialNodesData?.edges || initialEdges);
+export function AgentWorkflowBuilder(props: AgentWorkflowBuilderProps) {
+    return (
+        <ReactFlowProvider>
+            <AgentWorkflowBuilderInternal {...props} />
+        </ReactFlowProvider>
+    );
+}
+
+const getEdgePillStyle = (): Partial<Edge> => ({
+    type: 'smoothstep',
+    style: { stroke: 'var(--accent-9)', strokeWidth: 2 },
+    animated: false,
+    labelStyle: { fill: '#ffffff', fontSize: 15, fontWeight: 800, fontFamily: 'system-ui, -apple-system, sans-serif' },
+    labelBgStyle: { fill: 'var(--accent-9)', stroke: 'var(--accent-11)', strokeWidth: 2, rx: 24, ry: 24 },
+    labelBgPadding: [20, 10] as [number, number]
+});
+
+function AgentWorkflowBuilderInternal({ initialNodesData, onSaveData, activeNodeId, agentId }: AgentWorkflowBuilderProps) {
+    const loadNodes = (nds: Node[]) => nds.map(n => ({ ...n, type: 'customTask' }));
+    const loadEdges = (eds: Edge[]) => eds.map(e => ({
+        ...e,
+        ...(e.label ? getEdgePillStyle() : { type: 'smoothstep', style: { stroke: 'var(--accent-9)', strokeWidth: 2 } })
+    }));
+    
+    const [nodes, setNodes, onNodesChange] = useNodesState(loadNodes(initialNodesData?.nodes || initialNodes));
+    const [edges, setEdges, onEdgesChange] = useEdgesState(loadEdges(initialNodesData?.edges || initialEdges));
+    const { fitView } = useReactFlow();
+    
+    // Support persistence during tab switches: Only reset if the agent identity actually changed
+    const lastAgentIdRef = React.useRef<string | null>(null);
+    React.useEffect(() => {
+        const currentId = agentId || 'new';
+        if (currentId !== lastAgentIdRef.current) {
+            setNodes(loadNodes(initialNodesData?.nodes || initialNodes));
+            setEdges(loadEdges(initialNodesData?.edges || initialEdges));
+            lastAgentIdRef.current = currentId;
+        }
+    }, [agentId, initialNodesData, setNodes, setEdges]);
 
     const [selectedNode, setSelectedNode] = useState<Node | null>(null);
     const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
 
-    // Support Live Reloads when the user clicks / refreshes an existing Agent model!
+    // Highlight the active node visually and pan to it
     React.useEffect(() => {
-        if (initialNodesData?.nodes && nodes.length === 1 && nodes[0].id === 'start') {
-            setNodes(initialNodesData.nodes);
+        if (!activeNodeId) {
+            setNodes((nds) => nds.map((node) => ({ ...node, selected: false })));
+            return;
         }
-        if (initialNodesData?.edges && edges.length === 0) {
-            setEdges(initialNodesData.edges);
-        }
-    }, [initialNodesData, setNodes, setEdges, nodes.length, edges.length]);
 
-    // Vapi-style Auto-Save Pipeline: Funnel live Map changes instantly to main Agent Form Payload
+        // Pan to node
+        fitView({ nodes: [{ id: activeNodeId }], duration: 1000, padding: 0.5 });
+
+        setNodes((nds) => nds.map((node) => {
+            if (node.id === activeNodeId) {
+                return { ...node, selected: true };
+            }
+            return { ...node, selected: false };
+        }));
+    }, [activeNodeId, setNodes, fitView]);
+
+    // Vapi-style Auto-Save Pipeline: Funnel live changes to parent form state
     React.useEffect(() => {
         if (onSaveData) {
             onSaveData({ nodes, edges });
@@ -76,7 +184,12 @@ export function AgentWorkflowBuilder({ initialNodesData, onSaveData }: AgentWork
     }, []);
 
     const onConnect = useCallback(
-        (params: Connection) => setEdges((eds) => addEdge({ ...params, animated: true, style: { stroke: 'var(--accent-9)', strokeWidth: 2 } }, eds)),
+        (params: Connection) => setEdges((eds) => addEdge({ 
+            ...params, 
+            animated: false, 
+            type: 'smoothstep', 
+            style: { stroke: '#4b5563', strokeWidth: 2 } 
+        }, eds)),
         [setEdges]
     );
 
@@ -102,7 +215,11 @@ export function AgentWorkflowBuilder({ initialNodesData, onSaveData }: AgentWork
             setEdges((eds) =>
                 eds.map((e) => {
                     if (e.id === edge.id) {
-                        return { ...e, label: newLabel, style: { stroke: 'var(--accent-9)', strokeWidth: 2 }, animated: true };
+                        return { 
+                            ...e, 
+                            label: newLabel, 
+                            ...getEdgePillStyle()
+                        };
                     }
                     return e;
                 })
@@ -110,30 +227,31 @@ export function AgentWorkflowBuilder({ initialNodesData, onSaveData }: AgentWork
         }
     }, [setEdges]);
 
-    const addNewTask = (type: 'collect' | 'question' | 'handoff') => {
-        const defaultLabel = type === 'collect' ? 'Collect Information' : type === 'handoff' ? 'Human Handoff' : 'Logical Evaluation Step';
+    const addNewTask = (type: 'collect' | 'question' | 'handoff' | 'end') => {
+        const defaultLabel = type === 'end' ? 'End Session' : type === 'handoff' ? 'Human Handoff' : type === 'question' ? 'Logical Evaluation Step' : 'Collect Information';
 
         const newNode: Node = {
-            id: `task_${Date.now()}`,
-            type: 'default',
+            id: type === 'end' ? `end_${Date.now()}` : `task_${Date.now()}`,
+            type: 'customTask',
             position: { x: Math.random() * 200 + 100, y: Math.random() * 200 + 100 },
-            data: { label: defaultLabel },
-            style: {
-                backgroundColor: type === 'handoff' ? 'var(--orange-3)' : type === 'question' ? 'var(--purple-3)' : 'var(--blue-3)',
-                borderColor: type === 'handoff' ? 'var(--orange-8)' : type === 'question' ? 'var(--purple-8)' : 'var(--blue-8)',
-                padding: '10px 20px',
-                borderRadius: '8px',
-                minWidth: '150px',
-                textAlign: 'center'
-            }
+            data: { label: defaultLabel, type: type },
         };
-        setNodes((nds) => nds.concat(newNode));
+        setNodes((nds) => nds.concat(newNode as any));
     };
 
     return (
-        <Flex gap="4" style={{ width: '100%', height: '600px' }}>
+        <Flex gap="4" style={{ width: '100%', height: 'calc(100vh - 250px)', minHeight: '600px' }}>
+            <style>
+                {`
+                @keyframes pulse-glow {
+                    0% { box-shadow: 0 0 10px var(--accent-9); }
+                    50% { box-shadow: 0 0 30px var(--accent-9), 0 0 15px var(--accent-9); }
+                    100% { box-shadow: 0 0 10px var(--accent-9); }
+                }
+                `}
+            </style>
             {/* Main Interactive Map */}
-            <Box style={{ flexGrow: 1, border: '1px solid var(--gray-5)', borderRadius: 'var(--radius-4)', overflow: 'hidden', position: 'relative' }}>
+            <Box style={{ flexGrow: 1, border: '1px solid var(--gray-5)', borderRadius: 'var(--radius-4)', overflow: 'hidden', position: 'relative', backgroundColor: 'var(--color-surface)' }}>
                 <ReactFlow
                     nodes={nodes}
                     edges={edges}
@@ -144,9 +262,12 @@ export function AgentWorkflowBuilder({ initialNodesData, onSaveData }: AgentWork
                     onNodeClick={onNodeClick}
                     onEdgeClick={onEdgeClick}
                     onPaneClick={onPaneClick}
+                    onNodeDoubleClick={onNodeDoubleClick}
+                    onEdgeDoubleClick={onEdgeDoubleClick}
+                    defaultEdgeOptions={{ type: 'smoothstep', style: { stroke: 'var(--accent-9)', strokeWidth: 2 } }}
                     fitView
                 >
-                    <Background variant={BackgroundVariant.Dots} gap={12} size={1} color="var(--gray-a6)" />
+                    <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="var(--gray-a6)" />
                     <Controls />
                     <MiniMap nodeColor={(n) => {
                         if (n.type === 'input') return 'var(--green-9)';
@@ -164,6 +285,8 @@ export function AgentWorkflowBuilder({ initialNodesData, onSaveData }: AgentWork
                                     <DropdownMenu.Item onClick={() => addNewTask('collect')}><Activity size={14} style={{ marginRight: 8 }} /> Collect Target Data</DropdownMenu.Item>
                                     <DropdownMenu.Item onClick={() => addNewTask('question')}><Route size={14} style={{ marginRight: 8 }} /> Logic Path / Question</DropdownMenu.Item>
                                     <DropdownMenu.Item onClick={() => addNewTask('handoff')}><HandMetal size={14} style={{ marginRight: 8 }} /> Agent/Human Handoff</DropdownMenu.Item>
+                                    <DropdownMenu.Separator />
+                                    <DropdownMenu.Item color="red" onClick={() => addNewTask('end')}><PhoneOff size={14} style={{ marginRight: 8 }} /> Finish / End Case</DropdownMenu.Item>
                                 </DropdownMenu.Content>
                             </DropdownMenu.Root>
                         </Flex>
@@ -182,18 +305,43 @@ export function AgentWorkflowBuilder({ initialNodesData, onSaveData }: AgentWork
 
                         {selectedNode && (
                             <Flex direction="column" gap="3">
-                                <Text size="2" color="gray">Modify the exact step-instructions the Agent will obey when hitting this element.</Text>
-                                <TextArea
-                                    size="2"
-                                    placeholder="e.g. Ask user for email"
-                                    value={selectedNode.data?.label as string || ''}
-                                    style={{ height: '150px' }}
-                                    onChange={(e) => {
-                                        const newLabel = e.target.value;
-                                        setNodes(nds => nds.map(n => n.id === selectedNode.id ? { ...n, data: { ...n.data, label: newLabel } } : n));
-                                        setSelectedNode(prev => prev ? { ...prev, data: { ...prev.data, label: newLabel } } : null);
-                                    }}
-                                />
+                                <Flex direction="column" gap="1">
+                                    <Text size="2" weight="bold">Node Label</Text>
+                                    <Text size="1" color="gray">Display name on the graph</Text>
+                                    <TextField.Root
+                                        size="2"
+                                        placeholder="e.g. Collect Name"
+                                        value={selectedNode.data?.label as string || ''}
+                                        onChange={(e) => {
+                                            const newLabel = e.target.value;
+                                            setNodes(nds => nds.map(n => n.id === selectedNode.id ? { ...n, data: { ...n.data, label: newLabel } } : n));
+                                            setSelectedNode(prev => prev ? { ...prev, data: { ...prev.data, label: newLabel } } : null);
+                                        }}
+                                    />
+                                </Flex>
+
+                                <Flex direction="column" gap="1">
+                                    <Text size="2" weight="bold">Step Objective (Prompt)</Text>
+                                    <Text size="1" color="gray">Detailed instructions for the AI for this specific step.</Text>
+                                    <TextArea
+                                        size="2"
+                                        placeholder="e.g. Politely ask the user for their full name and wait for their response."
+                                        value={selectedNode.data?.description as string || ''}
+                                        style={{ height: '120px' }}
+                                        onChange={(e) => {
+                                            const newDesc = e.target.value;
+                                            setNodes(nds => nds.map(n => n.id === selectedNode.id ? { ...n, data: { ...n.data, description: newDesc } } : n));
+                                            setSelectedNode(prev => prev ? { ...prev, data: { ...prev.data, description: newDesc } } : null);
+                                        }}
+                                    />
+                                </Flex>
+
+                                <Box p="3" style={{ backgroundColor: 'var(--accent-2)', borderRadius: 'var(--radius-2)', border: '1px dashed var(--accent-7)' }}>
+                                    <Text size="1" weight="bold" color="indigo" mb="1" as="div">AI Behavior Sample:</Text>
+                                    <Text size="1" color="indigo" style={{ fontStyle: 'italic' }}>
+                                        "Stage: {String(selectedNode.data?.label || 'Untitled')}. Goal: {String(selectedNode.data?.description || '(No goal set)')}"
+                                    </Text>
+                                </Box>
                             </Flex>
                         )}
 
@@ -206,7 +354,11 @@ export function AgentWorkflowBuilder({ initialNodesData, onSaveData }: AgentWork
                                     value={selectedEdge.label as string || ''}
                                     onChange={(e) => {
                                         const newLabel = e.target.value;
-                                        setEdges(eds => eds.map(edge => edge.id === selectedEdge.id ? { ...edge, label: newLabel, style: { stroke: 'var(--accent-9)', strokeWidth: 2 }, animated: true } : edge));
+                                        setEdges(eds => eds.map(edge => edge.id === selectedEdge.id ? { 
+                                            ...edge, 
+                                            label: newLabel, 
+                                            ...getEdgePillStyle()
+                                        } : edge));
                                         setSelectedEdge(prev => prev ? { ...prev, label: newLabel } : null);
                                     }}
                                 />
