@@ -2,7 +2,6 @@ import React, { useCallback, useState } from 'react';
 import {
     ReactFlow,
     MiniMap,
-    Controls,
     Background,
     useNodesState,
     useEdgesState,
@@ -10,13 +9,17 @@ import {
     BackgroundVariant,
     Panel,
     ReactFlowProvider,
-    useReactFlow
+    useReactFlow,
+    SelectionMode
 } from '@xyflow/react';
 import type { Connection, Edge, Node } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Card, Flex, Text, Button, Box, Heading, TextField, TextArea, DropdownMenu } from '@radix-ui/themes';
+import { Card, Flex, Text, Button, Box, Heading, TextField, TextArea, DropdownMenu, Tooltip, AlertDialog } from '@radix-ui/themes';
 import { Handle, Position } from '@xyflow/react';
-import { Plus, Route, Activity, HandMetal, Settings2, PhoneOff, User } from 'lucide-react';
+import { 
+    Plus, Route, Activity, HandMetal, Settings2, PhoneOff, User,
+    Lock, Unlock, ZoomIn, ZoomOut, MousePointer2, Hand, Crosshair 
+} from 'lucide-react';
 
 const initialNodes: Node[] = [
     {
@@ -32,15 +35,15 @@ const initialEdges: Edge[] = [];
 const TaskNode = ({ id, data, selected }: any) => {
     const isEnd = data.type === 'end' || data.type === 'output' || id === 'end';
     const isStart = data.id === 'start' || id === 'start';
-    
+
     // Icon mapping
     let Icon = Activity;
     if (isEnd) Icon = PhoneOff;
     else if (data.type === 'handoff') Icon = HandMetal;
     else if (data.type === 'question') Icon = User;
-    
+
     const borderColor = selected ? 'var(--accent-8)' : 'var(--gray-5)';
-    
+
     // Icon color handling
     const iconBgColor = isStart ? 'var(--green-3)' : isEnd ? 'var(--red-3)' : 'var(--accent-3)';
     const iconColor = isStart ? 'var(--green-11)' : isEnd ? 'var(--red-11)' : 'var(--accent-11)';
@@ -51,7 +54,7 @@ const TaskNode = ({ id, data, selected }: any) => {
             padding: 0,
             borderRadius: '12px',
             border: `2px solid ${borderColor}`,
-            width: '320px',
+            width: '380px',
             backgroundColor: 'var(--color-surface)',
             boxShadow: selected ? '0 0 0 1px var(--accent-8), 0 4px 12px var(--black-a2)' : 'var(--shadow-2)',
             display: 'flex',
@@ -60,7 +63,7 @@ const TaskNode = ({ id, data, selected }: any) => {
             {/* Connection Handles */}
             {!isStart && <Handle type="target" position={Position.Top} style={{ background: 'var(--accent-9)', border: 'none', width: '10px', height: '10px', top: '-6px' }} />}
             {!isEnd && <Handle type="source" position={Position.Bottom} style={{ background: 'var(--accent-9)', border: 'none', width: '10px', height: '10px', bottom: '-6px' }} />}
-            
+
             <div style={{ borderRadius: '10px', overflow: 'hidden', display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
                 {/* Header */}
                 <Flex justify="between" align="center" style={{ padding: '12px 16px', backgroundColor: 'var(--gray-2)', borderBottom: '1px solid var(--gray-5)' }}>
@@ -74,7 +77,7 @@ const TaskNode = ({ id, data, selected }: any) => {
                     </Flex>
                     <Settings2 size={16} color="var(--gray-8)" style={{ cursor: 'pointer' }} />
                 </Flex>
-                
+
                 {/* Body */}
                 <Flex direction="column" gap="2" style={{ padding: '16px', flexGrow: 1 }}>
                     <Text size="1" weight="bold" color="gray" style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -123,11 +126,14 @@ function AgentWorkflowBuilderInternal({ initialNodesData, onSaveData, activeNode
         ...e,
         ...(e.label ? getEdgePillStyle() : { type: 'smoothstep', style: { stroke: 'var(--accent-9)', strokeWidth: 2 } })
     }));
-    
+
     const [nodes, setNodes, onNodesChange] = useNodesState(loadNodes(initialNodesData?.nodes || initialNodes));
     const [edges, setEdges, onEdgesChange] = useEdgesState(loadEdges(initialNodesData?.edges || initialEdges));
-    const { fitView } = useReactFlow();
+    const { fitView, zoomIn, zoomOut } = useReactFlow();
     
+    const [isLocked, setIsLocked] = useState(false);
+    const [interactionMode, setInteractionMode] = useState<'select' | 'pan'>('pan');
+
     // Support persistence during tab switches: Only reset if the agent identity actually changed
     const lastAgentIdRef = React.useRef<string | null>(null);
     React.useEffect(() => {
@@ -136,8 +142,10 @@ function AgentWorkflowBuilderInternal({ initialNodesData, onSaveData, activeNode
             setNodes(loadNodes(initialNodesData?.nodes || initialNodes));
             setEdges(loadEdges(initialNodesData?.edges || initialEdges));
             lastAgentIdRef.current = currentId;
+            // Force the viewport to a tighter 'working zoom' level (maxZoom: 1.2)
+            setTimeout(() => fitView({ padding: 0.08, duration: 400, maxZoom: 1.2 }), 100);
         }
-    }, [agentId, initialNodesData, setNodes, setEdges]);
+    }, [agentId, initialNodesData, setNodes, setEdges, fitView]);
 
     const [selectedNode, setSelectedNode] = useState<Node | null>(null);
     const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
@@ -184,11 +192,11 @@ function AgentWorkflowBuilderInternal({ initialNodesData, onSaveData, activeNode
     }, []);
 
     const onConnect = useCallback(
-        (params: Connection) => setEdges((eds) => addEdge({ 
-            ...params, 
-            animated: false, 
-            type: 'smoothstep', 
-            style: { stroke: '#4b5563', strokeWidth: 2 } 
+        (params: Connection) => setEdges((eds) => addEdge({
+            ...params,
+            animated: false,
+            type: 'smoothstep',
+            style: { stroke: '#4b5563', strokeWidth: 2 }
         }, eds)),
         [setEdges]
     );
@@ -215,9 +223,9 @@ function AgentWorkflowBuilderInternal({ initialNodesData, onSaveData, activeNode
             setEdges((eds) =>
                 eds.map((e) => {
                     if (e.id === edge.id) {
-                        return { 
-                            ...e, 
-                            label: newLabel, 
+                        return {
+                            ...e,
+                            label: newLabel,
                             ...getEdgePillStyle()
                         };
                     }
@@ -240,7 +248,7 @@ function AgentWorkflowBuilderInternal({ initialNodesData, onSaveData, activeNode
     };
 
     return (
-        <Flex gap="4" style={{ width: '100%', height: 'calc(100vh - 250px)', minHeight: '600px' }}>
+        <Flex gap="0" style={{ width: '100%', height: '100%', minHeight: '600px' }}>
             <style>
                 {`
                 @keyframes pulse-glow {
@@ -251,7 +259,7 @@ function AgentWorkflowBuilderInternal({ initialNodesData, onSaveData, activeNode
                 `}
             </style>
             {/* Main Interactive Map */}
-            <Box style={{ flexGrow: 1, border: '1px solid var(--gray-5)', borderRadius: 'var(--radius-4)', overflow: 'hidden', position: 'relative', backgroundColor: 'var(--color-surface)' }}>
+            <Box style={{ flexGrow: 1, overflow: 'hidden', position: 'relative', backgroundColor: 'var(--color-surface)' }}>
                 <ReactFlow
                     nodes={nodes}
                     edges={edges}
@@ -265,15 +273,106 @@ function AgentWorkflowBuilderInternal({ initialNodesData, onSaveData, activeNode
                     onNodeDoubleClick={onNodeDoubleClick}
                     onEdgeDoubleClick={onEdgeDoubleClick}
                     defaultEdgeOptions={{ type: 'smoothstep', style: { stroke: 'var(--accent-9)', strokeWidth: 2 } }}
+                    minZoom={0.5}
+                    maxZoom={1.8}
                     fitView
+                    fitViewOptions={{ padding: 0.08, maxZoom: 1.2 }}
+                    onInit={(instance) => setTimeout(() => instance.fitView({ padding: 0.08, maxZoom: 1.2 }), 50)}
+                    proOptions={{ hideAttribution: true }}
+                    nodesDraggable={!isLocked}
+                    nodesConnectable={!isLocked}
+                    panOnDrag={interactionMode === 'pan'}
+                    selectionOnDrag={interactionMode === 'select'}
+                    selectionMode={SelectionMode.Partial}
                 >
                     <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="var(--gray-a6)" />
-                    <Controls />
                     <MiniMap nodeColor={(n) => {
                         if (n.type === 'input') return 'var(--green-9)';
                         if (n.type === 'output') return 'var(--red-9)';
                         return 'var(--blue-9)';
                     }} />
+
+                    {/* Universal Custom Tool Panel */}
+                    <Panel position="bottom-center" style={{ marginBottom: '24px' }}>
+                        <Flex gap="0" align="center" style={{ 
+                            backgroundColor: 'white', 
+                            padding: '8px 12px', 
+                            borderRadius: '10px', 
+                            border: '1px solid var(--gray-5)',
+                            boxShadow: 'var(--shadow-4)',
+                            color: 'var(--gray-11)'
+                        }}>
+                            {/* Group 1: Navigation */}
+                            <Flex gap="4" px="3" style={{ borderRight: '1px solid var(--gray-5)' }}>
+                                <Tooltip content="Fit View to Screen">
+                                    <Button variant="ghost" size="1" onClick={() => fitView({ padding: 0.1, duration: 400 })} style={{ color: 'inherit', cursor: 'pointer', borderRadius: '10px' }}>
+                                        <Crosshair size={22} />
+                                    </Button>
+                                </Tooltip>
+                                <Tooltip content={isLocked ? "Unlock Layout" : "Lock Layout"}>
+                                    <Button variant="ghost" size="1" onClick={() => setIsLocked(!isLocked)} style={{ color: isLocked ? 'var(--accent-9)' : 'inherit', cursor: 'pointer', borderRadius: '10px' }}>
+                                        {isLocked ? <Lock size={22} /> : <Unlock size={22} />}
+                                    </Button>
+                                </Tooltip>
+                            </Flex>
+
+                            {/* Group 2: Zoom */}
+                            <Flex gap="4" px="3" style={{ borderRight: '1px solid var(--gray-5)' }}>
+                                <Tooltip content="Zoom Out">
+                                    <Button variant="ghost" size="1" onClick={() => zoomOut()} style={{ color: 'inherit', cursor: 'pointer', borderRadius: '10px' }}><ZoomOut size={22} /></Button>
+                                </Tooltip>
+                                <Tooltip content="Zoom In">
+                                    <Button variant="ghost" size="1" onClick={() => zoomIn()} style={{ color: 'inherit', cursor: 'pointer', borderRadius: '10px' }}><ZoomIn size={22} /></Button>
+                                </Tooltip>
+                            </Flex>
+
+                            {/* Group 3: Interaction Modes */}
+                            <Flex gap="1" align="center" ml="2" style={{ backgroundColor: 'var(--gray-3)', borderRadius: '10px', padding: '3px' }}>
+                                <Tooltip content="Selection Mode (Select Multiple)">
+                                    <Button 
+                                        variant="ghost" 
+                                        size="1" 
+                                        onClick={() => setInteractionMode('select')}
+                                        style={{ 
+                                            borderRadius: '8px', 
+                                            backgroundColor: interactionMode === 'select' ? 'var(--accent-3)' : 'transparent',
+                                            color: interactionMode === 'select' ? 'var(--accent-11)' : 'inherit',
+                                            cursor: 'pointer',
+                                            width: '38px',
+                                            height: '28px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            '--button-ghost-hover-background': 'transparent'
+                                        } as any}
+                                    >
+                                        <MousePointer2 size={18} />
+                                    </Button>
+                                </Tooltip>
+                                <Tooltip content="Panning Mode (Drag Map)">
+                                    <Button 
+                                        variant="ghost" 
+                                        size="1" 
+                                        onClick={() => setInteractionMode('pan')}
+                                        style={{ 
+                                            borderRadius: '8px', 
+                                            backgroundColor: interactionMode === 'pan' ? 'var(--accent-3)' : 'transparent',
+                                            color: interactionMode === 'pan' ? 'var(--accent-11)' : 'inherit',
+                                            cursor: 'pointer',
+                                            width: '38px',
+                                            height: '28px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            '--button-ghost-hover-background': 'transparent'
+                                        } as any}
+                                    >
+                                        <Hand size={18} />
+                                    </Button>
+                                </Tooltip>
+                            </Flex>
+                        </Flex>
+                    </Panel>
 
                     <Panel position="top-right">
                         <Flex gap="3" p="3" style={{ backgroundColor: 'var(--gray-2)', borderRadius: 'var(--radius-3)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
@@ -354,9 +453,9 @@ function AgentWorkflowBuilderInternal({ initialNodesData, onSaveData, activeNode
                                     value={selectedEdge.label as string || ''}
                                     onChange={(e) => {
                                         const newLabel = e.target.value;
-                                        setEdges(eds => eds.map(edge => edge.id === selectedEdge.id ? { 
-                                            ...edge, 
-                                            label: newLabel, 
+                                        setEdges(eds => eds.map(edge => edge.id === selectedEdge.id ? {
+                                            ...edge,
+                                            label: newLabel,
                                             ...getEdgePillStyle()
                                         } : edge));
                                         setSelectedEdge(prev => prev ? { ...prev, label: newLabel } : null);
@@ -365,14 +464,32 @@ function AgentWorkflowBuilderInternal({ initialNodesData, onSaveData, activeNode
                             </Flex>
                         )}
 
-                        <Button color="red" variant="soft" mt="4" onClick={() => {
-                            if (selectedNode) setNodes(nds => nds.filter(n => n.id !== selectedNode.id));
-                            if (selectedEdge) setEdges(eds => eds.filter(e => e.id !== selectedEdge.id));
-                            setSelectedNode(null);
-                            setSelectedEdge(null);
-                        }}>
-                            Delete Element
-                        </Button>
+						<AlertDialog.Root>
+							<AlertDialog.Trigger>
+								<Button color="red" variant="soft" mt="4">
+									Delete Element
+								</Button>
+							</AlertDialog.Trigger>
+							<AlertDialog.Content maxWidth="450px">
+								<AlertDialog.Title style={{ color: '#1e293b', fontWeight: 800 }}>Delete Graph Element</AlertDialog.Title>
+								<AlertDialog.Description size="2">
+									Are you sure you want to remove this {selectedNode ? 'Task Node' : 'Logical Edge'}? Any connected logic paths will be severed.
+								</AlertDialog.Description>
+								<Flex gap="3" mt="4" justify="end">
+									<AlertDialog.Cancel>
+										<Button variant="soft" color="gray">Cancel</Button>
+									</AlertDialog.Cancel>
+									<AlertDialog.Action>
+										<Button variant="solid" color="red" onClick={() => {
+											if (selectedNode) setNodes(nds => nds.filter(n => n.id !== selectedNode.id));
+											if (selectedEdge) setEdges(eds => eds.filter(e => e.id !== selectedEdge.id));
+											setSelectedNode(null);
+											setSelectedEdge(null);
+										}}>Delete Element</Button>
+									</AlertDialog.Action>
+								</Flex>
+							</AlertDialog.Content>
+						</AlertDialog.Root>
                     </Flex>
                 </Card>
             )}

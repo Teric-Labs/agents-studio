@@ -4,10 +4,13 @@ import {
   Upload, 
   Trash2, 
   RefreshCw, 
-  File, 
   CheckCircle2, 
   AlertCircle,
-  HardDrive
+  HardDrive,
+  Plus,
+  X,
+  Search,
+  FileText
 } from 'lucide-react';
 import { 
   Box, 
@@ -16,11 +19,13 @@ import {
   Button, 
   Card, 
   Table, 
-  IconButton, 
   Spinner,
-  Separator,
   Callout,
-  Grid
+  Dialog,
+  AlertDialog,
+  Heading,
+  Badge,
+  TextField
 } from '@radix-ui/themes';
 
 
@@ -39,6 +44,8 @@ export const KnowledgeBaseManager: React.FC = () => {
   const [isReindexing, setIsReindexing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const fetchFiles = useCallback(async () => {
     setIsLoading(true);
@@ -89,8 +96,6 @@ export const KnowledgeBaseManager: React.FC = () => {
   };
 
   const handleDelete = async (filename: string) => {
-    if (!confirm(`Are you sure you want to delete "${filename}"?`)) return;
-
     setError(null);
     try {
       await axios.delete(`${API_BASE}/knowledge/files/${filename}`);
@@ -130,139 +135,199 @@ export const KnowledgeBaseManager: React.FC = () => {
     return new Date(parseFloat(timestamp) * 1000).toLocaleString();
   };
 
+  const filteredFiles = files.filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase()));
+
   return (
-    <Box p="4">
-      <Flex direction="column" gap="4">
-        {/* Header and Status */}
-        <Flex justify="between" align="center">
-          <Flex align="center" gap="2">
-            <HardDrive size={24} color="var(--accent-9)" />
-            <Box>
-              <Text weight="bold" size="4">Documents Knowledge Base</Text>
-              <Text size="2" color="gray">Power your agent with external data & RAG</Text>
-            </Box>
-          </Flex>
-          <Flex gap="2">
-            <Button variant="outline" color="gray" onClick={fetchFiles} disabled={isLoading}>
+    <Card size="2">
+      <Flex direction="column" gap="5">
+        {/* Header - Global Standard Header for Management Views */}
+        <Flex direction={{ initial: 'column', md: 'row' }} justify="between" align={{ initial: 'stretch', md: 'center' }} gap="4">
+          <Box>
+            <Heading size={{ initial: '3', md: '4' }} mb="1" style={{ color: '#1e293b', fontWeight: 800 }}>Knowledge Base</Heading>
+            <Text size={{ initial: '1', md: '2' }} color="gray">Upload and manage documents for RAG indexing</Text>
+          </Box>
+          <Flex gap="3" direction={{ initial: 'column', md: 'row' }} align={{ initial: 'stretch', md: 'center' }}>
+            <TextField.Root placeholder="Search documents..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} size="2">
+              <TextField.Slot><Search size={14} /></TextField.Slot>
+            </TextField.Root>
+            
+            <Dialog.Root open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+              <Dialog.Trigger>
+                <Button color="teal" size="2" variant="solid">
+                  <Plus size={16} /> Upload Document
+                </Button>
+              </Dialog.Trigger>
+              <Dialog.Content maxWidth="520px">
+                <Box>
+                  <Flex align="center" gap="3" mb="1">
+                    <Box p="2" style={{ backgroundColor: 'var(--teal-3)', color: 'var(--teal-9)', borderRadius: 'var(--radius-3)' }}>
+                      <HardDrive size={24} />
+                    </Box>
+                    <Dialog.Title style={{ margin: 0, fontWeight: 800, fontSize: '24px', letterSpacing: '-0.02em', color: '#1e293b' }}>
+                      Upload Knowledge
+                    </Dialog.Title>
+                  </Flex>
+                  <Dialog.Description size="2">
+                    Expand your agent's universe. Add documents to power its long-term memory and RAG capabilities.
+                  </Dialog.Description>
+                </Box>
+                
+                <Box position="relative" mt="4">
+                  <input
+                    type="file"
+                    onChange={(e) => {
+                      handleFileUpload(e);
+                      setIsUploadDialogOpen(false);
+                    }}
+                    style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', zIndex: 10 }}
+                    disabled={isUploading}
+                  />
+                  <Button 
+                    variant="surface" 
+                    color="teal" 
+                    style={{ width: '100%', height: '120px', border: '2px dashed var(--teal-5)' }}
+                  >
+                    <Flex direction="column" align="center" gap="2">
+                      {isUploading ? <Spinner size="3" /> : <Upload size={32} />}
+                      <Text size="2" weight="bold">{isUploading ? 'Uploading...' : 'Click or Drop File'}</Text>
+                      <Text size="1" color="gray">Maximum file size: 50MB</Text>
+                    </Flex>
+                  </Button>
+                </Box>
+                
+                <Flex gap="3" mt="5" justify="end">
+                  <Dialog.Close>
+                    <Button variant="soft" color="gray">Cancel</Button>
+                  </Dialog.Close>
+                </Flex>
+              </Dialog.Content>
+            </Dialog.Root>
+
+            <Button variant="soft" color="gray" onClick={fetchFiles} disabled={isLoading}>
               <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
-              {isLoading ? 'Refreshing...' : 'Refresh'}
-            </Button>
-            <Button variant="soft" color="indigo" onClick={handleReindex} disabled={isReindexing}>
-              <RefreshCw size={16} className={isReindexing ? 'animate-spin' : ''} />
-              Re-Index All
             </Button>
           </Flex>
         </Flex>
 
-        <Separator size="4" />
-
-        {/* Messaging Area */}
+        {/* Messaging Area - Local alerts within the card context */}
         {error && (
-          <Callout.Root color="red" variant="soft">
+          <Callout.Root color="red" variant="soft" size="1">
             <Callout.Icon><AlertCircle size={18} /></Callout.Icon>
             <Callout.Text>{error}</Callout.Text>
           </Callout.Root>
         )}
         {successMessage && (
-          <Callout.Root color="green" variant="soft">
+          <Callout.Root color="green" variant="soft" size="1">
             <Callout.Icon><CheckCircle2 size={18} /></Callout.Icon>
             <Callout.Text>{successMessage}</Callout.Text>
           </Callout.Root>
         )}
 
-        <Grid columns={{ initial: '1', md: '3' }} gap="4">
-          {/* Upload Section */}
-          <Card size="2">
-            <Flex direction="column" gap="3">
-              <Text weight="bold" size="3" mb="1">Upload Documents</Text>
-              <Text size="1" color="gray">Add PDF, TXT, or DOCX files to the agent's memory.</Text>
-              
-              <Box position="relative">
-                <input
-                  type="file"
-                  onChange={handleFileUpload}
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    opacity: 0,
-                    cursor: 'pointer',
-                    zIndex: 10
-                  }}
-                  disabled={isUploading}
-                />
-                <Button 
-                  variant="surface" 
-                  color="indigo" 
-                  style={{ width: '100%', height: '80px', border: '2px dashed var(--indigo-5)' }}
-                >
-                  <Flex direction="column" align="center" gap="1">
-                    {isUploading ? <Spinner size="3" /> : <Upload size={24} />}
-                    <Text size="2">{isUploading ? 'Uploading...' : 'Drop file or click here'}</Text>
+        {/* Standardized Index Table */}
+        <Box style={{ overflowX: 'auto', margin: '0 -4px' }}>
+          <Table.Root variant="ghost" size="1">
+            <Table.Header>
+              <Table.Row>
+                <Table.ColumnHeaderCell>FILENAME</Table.ColumnHeaderCell>
+                <Table.ColumnHeaderCell>TYPE</Table.ColumnHeaderCell>
+                <Table.ColumnHeaderCell>SIZE</Table.ColumnHeaderCell>
+                <Table.ColumnHeaderCell>LAST MODIFIED</Table.ColumnHeaderCell>
+                <Table.ColumnHeaderCell align="center">ACTIONS</Table.ColumnHeaderCell>
+              </Table.Row>
+            </Table.Header>
+
+          <Table.Body>
+            {filteredFiles.length === 0 ? (
+              <Table.Row>
+                <Table.Cell colSpan={5} align="center" style={{ padding: '60px 0' }}>
+                  <Flex direction="column" align="center" gap="2">
+                    <FileText size={32} color="#94a3b8" />
+                    <Text color="gray" size="2" weight="medium">No documents indexed in your knowledge base.</Text>
                   </Flex>
-                </Button>
-              </Box>
-            </Flex>
-          </Card>
+                </Table.Cell>
+              </Table.Row>
+            ) : (
+              filteredFiles.map((file) => {
+                const extension = file.name.split('.').pop()?.toLowerCase() || '';
+                const getFileTypeInfo = (ext: string) => {
+                  switch(ext) {
+                    case 'pdf': return { label: 'PDF', color: 'red' as const, icon: <FileText size={18} /> };
+                    case 'xlsx': 
+                    case 'xls': 
+                    case 'csv': return { label: 'Excel/Data', color: 'green' as const, icon: <HardDrive size={18} /> };
+                    case 'doc':
+                    case 'docx': return { label: 'Word', color: 'blue' as const, icon: <FileText size={18} /> };
+                    case 'txt':
+                    case 'md': return { label: 'Text', color: 'gray' as const, icon: <FileText size={18} /> };
+                    default: return { label: 'Document', color: 'indigo' as const, icon: <FileText size={18} /> };
+                  }
+                };
+                const typeInfo = getFileTypeInfo(extension);
 
-          {/* Files List Section */}
-          <Box style={{ gridColumn: 'span 2' }}>
-            <Card variant="surface" style={{ padding: 0 }}>
-              <Table.Root variant="surface">
-                <Table.Header>
-                  <Table.Row>
-                    <Table.ColumnHeaderCell>Filename</Table.ColumnHeaderCell>
-                    <Table.ColumnHeaderCell>Size</Table.ColumnHeaderCell>
-                    <Table.ColumnHeaderCell>Last Modified</Table.ColumnHeaderCell>
-                    <Table.ColumnHeaderCell align="right">Actions</Table.ColumnHeaderCell>
+                return (
+                  <Table.Row key={file.name} align="center">
+                    <Table.Cell>
+                      <Flex align="center" gap="3">
+                        <Box p="2" style={{ backgroundColor: `var(--${typeInfo.color}-3)`, borderRadius: 'var(--radius-2)' }}>
+                          {React.cloneElement(typeInfo.icon as React.ReactElement, { color: `var(--${typeInfo.color}-11)` })}
+                        </Box>
+                        <Box>
+                          <Text size="2" weight="bold" as="div">{file.name}</Text>
+                          <Text size="1" color="gray">{typeInfo.label}</Text>
+                        </Box>
+                      </Flex>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <Badge color={typeInfo.color} variant="soft" radius="full" style={{ textTransform: 'uppercase', fontWeight: 800 }}>
+                        {extension || 'FILE'}
+                      </Badge>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <Badge color="gray" variant="surface" radius="full">{formatSize(file.size)}</Badge>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <Text size="2" color="gray">{formatDate(file.modified)}</Text>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <Flex gap="2" justify="center" align="center">
+                        <AlertDialog.Root>
+                          <AlertDialog.Trigger>
+                            <Button size="1" variant="ghost" color="red"><Trash2 size={14} /> Remove</Button>
+                          </AlertDialog.Trigger>
+                          <AlertDialog.Content maxWidth="450px">
+                            <AlertDialog.Title style={{ fontWeight: 800, color: '#1e293b' }}>Delete Document</AlertDialog.Title>
+                            <AlertDialog.Description size="2">
+                              Are you sure? This document will be permanently removed from the agent's memory and knowledge base indexing.
+                            </AlertDialog.Description>
+                            <Flex gap="3" mt="4" justify="end" align="center">
+                              <AlertDialog.Cancel><Button variant="soft" color="gray"><X size={16}/> Cancel</Button></AlertDialog.Cancel>
+                              <AlertDialog.Action>
+                                <Button variant="solid" color="red" onClick={() => handleDelete(file.name)}><Trash2 size={16}/> Delete</Button>
+                              </AlertDialog.Action>
+                            </Flex>
+                          </AlertDialog.Content>
+                        </AlertDialog.Root>
+                      </Flex>
+                    </Table.Cell>
                   </Table.Row>
-                </Table.Header>
-
-                <Table.Body>
-                  {files.length === 0 ? (
-                    <Table.Row>
-                      <Table.Cell colSpan={4} align="center" style={{ height: '100px' }}>
-                        <Text color="gray" size="2">No documents indexed yet.</Text>
-                      </Table.Cell>
-                    </Table.Row>
-                  ) : (
-                    files.map((file) => (
-                      <Table.Row key={file.name}>
-                        <Table.RowHeaderCell>
-                          <Flex align="center" gap="2">
-                            <File size={16} color="var(--gray-9)" />
-                            <Text size="2" weight="medium">{file.name}</Text>
-                          </Flex>
-                        </Table.RowHeaderCell>
-                        <Table.Cell>
-                          <Text size="1" color="gray">{formatSize(file.size)}</Text>
-                        </Table.Cell>
-                        <Table.Cell>
-                          <Text size="1" color="gray">{formatDate(file.modified)}</Text>
-                        </Table.Cell>
-                        <Table.Cell align="right">
-                          <IconButton size="1" variant="ghost" color="red" onClick={() => handleDelete(file.name)}>
-                            <Trash2 size={14} />
-                          </IconButton>
-                        </Table.Cell>
-                      </Table.Row>
-                    ))
-                  )}
-                </Table.Body>
-              </Table.Root>
-            </Card>
-          </Box>
-        </Grid>
-
-        <Box>
-            <Callout.Root color="indigo" variant="outline">
-                <Callout.Icon><AlertCircle size={18} /></Callout.Icon>
-                <Callout.Text size="1">
-                    The knowledge base uses LlamaIndex for RAG. Uploaded documents are automatically chunked and indexed. 
-                    Re-indexing might take a few moments for large files.
-                </Callout.Text>
-            </Callout.Root>
+                );
+              })
+            )}
+          </Table.Body>
+        </Table.Root>
         </Box>
+
+        {/* Global Toolbar Footer */}
+        <Flex direction={{ initial: 'column', sm: 'row' }} justify="between" align={{ initial: 'start', sm: 'center' }} gap="4" pt="2" style={{ borderTop: '1px solid var(--gray-4)' }}>
+          <Text size="1" color="gray" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertCircle size={14} /> 
+            Vector embeddings are updated automatically on every upload.
+          </Text>
+          <Button variant="soft" color="teal" size="1" onClick={handleReindex} disabled={isReindexing}>
+            <RefreshCw size={14} className={isReindexing ? 'animate-spin' : ''} /> Force Global Re-Index
+          </Button>
+        </Flex>
       </Flex>
-    </Box>
+    </Card>
   );
 };
