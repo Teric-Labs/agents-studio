@@ -1,197 +1,261 @@
-import { useEffect, useRef } from 'react';
-import { Box } from '@radix-ui/themes';
+import React, { useEffect, useState, useRef } from 'react';
 import * as LiveKitSDK from 'livekit-client';
+import { Box } from '@radix-ui/themes';
 
-export type VisualizerState = 'disconnected' | 'connecting' | 'listening' | 'speaking' | 'thinking';
+export type VisualizerState = 'connecting' | 'listening' | 'speaking' | 'thinking' | 'error' | 'disconnected';
+
+// --- WebGL Shaders ---
+const vertexShaderSource = `
+attribute vec2 uv;
+attribute vec2 position;
+varying vec2 vUv;
+void main() {
+    vUv = uv;
+    gl_Position = vec4(position, 0, 1);
+}
+`;
+
+const fragmentShaderSource = `
+precision highp float;
+uniform float uTime;
+uniform vec3 uColor;
+uniform vec2 uResolution;
+uniform float uAmplitude;
+uniform float uSpeed;
+varying vec2 vUv;
+
+void main() {
+    float mr = min(uResolution.x, uResolution.y);
+    vec2 uv = (vUv * 2.0 - 1.0) * uResolution.xy / mr;
+    
+    float d = -uTime * 0.5 * uSpeed;
+    float a = 0.0;
+    
+    // Iridescence / Plasma animation loop
+    for (float i = 0.0; i < 8.0; ++i) {
+        a += cos(i - d - a * uv.x);
+        d += sin(uv.y * i + a);
+    }
+    
+    // Color generation
+    vec3 col = vec3(cos(uv * vec2(d, a)) * 0.6 + 0.4, cos(a + d) * 0.5 + 0.5);
+    col = cos(col * cos(vec3(d, a, 2.5)) * 0.5 + 0.5) * uColor;
+    
+    // Add a soft circular mask to make it look like an orb
+    float dist = length(vUv * 2.0 - 1.0);
+    float mask = 1.0 - smoothstep(0.8, 1.0, dist);
+    
+    gl_FragColor = vec4(col, mask);
+}
+`;
+
+function hexToRgb(hex: string): [number, number, number] {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? [
+        parseInt(result[1], 16) / 255,
+        parseInt(result[2], 16) / 255,
+        parseInt(result[3], 16) / 255
+    ] : [0.3, 0.6, 1];
+}
 
 export function AgentAudioVisualizerBar({
     audioTrack,
-    state
+    state,
+    theme = 'circle',
+    color = '#f0ad44',
+    volume: volumeProp
 }: {
     audioTrack: LiveKitSDK.RemoteAudioTrack | null;
     state: VisualizerState;
+    theme?: 'circle' | 'bars';
+    color?: string;
+    volume?: number;
 }) {
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const colorTrackerRef = useRef<HTMLDivElement>(null);
+    const [volume, setVolume] = useState(0);
+    const canvasRef = useRef<HTMLCanvasElement | null>(null);
+    const glRef = useRef<WebGLRenderingContext | null>(null);
+    const programRef = useRef<WebGLProgram | null>(null);
+    const volumeRef = useRef(0);
 
+    // Audio Analysis
     useEffect(() => {
-        const canvas = canvasRef.current;
-        const colorTracker = colorTrackerRef.current;
-        if (!canvas || !colorTracker) return;
-
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-
-        let animationId: number;
-        let analyser: AnalyserNode | null = null;
-        let dataArray: Uint8Array | null = null;
-        let audioCtx: AudioContext | null = null;
-        let source: MediaStreamAudioSourceNode | null = null;
-
-        // Setup high DPI Canvas
-        const dpr = window.devicePixelRatio || 1;
-        const width = 160;
-        const height = 160;
-        canvas.width = width * dpr;
-        canvas.height = height * dpr;
-        ctx.scale(dpr, dpr);
-
-        // Global smoothed array for natural physics
-        const barCount = 100;
-        const smoothedValues = new Array(barCount).fill(0);
-        let tick = 0;
-
-        if (audioTrack && audioTrack.mediaStreamTrack) {
-            audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-            const stream = new MediaStream([audioTrack.mediaStreamTrack]);
-            source = audioCtx.createMediaStreamSource(stream);
-            analyser = audioCtx.createAnalyser();
-
-            analyser.fftSize = 256;
-            analyser.smoothingTimeConstant = 0.4;
-            dataArray = new Uint8Array(analyser.frequencyBinCount);
-
-            source.connect(analyser);
+        if (volumeProp !== undefined) {
+            setVolume(volumeProp);
+            volumeRef.current = volumeProp;
+            return;
         }
 
-        // Keep track of resolved DOM colors, starting with professional gray fallbacks
-        let activeMainColor = '#a0a0a0';
-        let activeHighlightColor = '#ffffff';
+        if (!audioTrack || !audioTrack.mediaStreamTrack || (state === 'disconnected' || state === 'connecting')) {
+            setVolume(0);
+            volumeRef.current = 0;
+            return;
+        }
 
-        const draw = () => {
-            tick += 0.05;
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const source = audioContext.createMediaStreamSource(new MediaStream([audioTrack.mediaStreamTrack]));
+        const analyser = audioContext.createAnalyser();
+        analyser.fftSize = 256;
+        source.connect(analyser);
 
-            // Periodically resolve Radix theme colors (every ~60 frames) to safely support dark mode toggles or late CSS injection
-            if (Math.floor(tick * 20) % 60 === 0 && colorTracker) {
-                const style = getComputedStyle(colorTracker);
-                if (style.color && style.color !== 'rgba(0, 0, 0, 0)' && style.color !== 'transparent') {
-                    activeMainColor = style.color;
-                    activeHighlightColor = style.backgroundColor;
-                }
-            }
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        let rafId: number;
 
-            ctx.clearRect(0, 0, width, height);
-
-            const centerX = width / 2;
-            const centerY = height / 2;
-            const baseRadius = 45;
-
-            if (analyser && dataArray && state === 'speaking') {
-                analyser.getByteFrequencyData(dataArray as any);
-            }
-
-            // Draw base inner ring softly
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, baseRadius - 2, 0, Math.PI * 2);
-            ctx.strokeStyle = activeMainColor;
-            ctx.globalAlpha = 0.2;
-            ctx.lineWidth = 1;
-            ctx.stroke();
-            ctx.globalAlpha = 1.0;
-
-            const targetValues = new Array(barCount).fill(0);
-
-            for (let i = 0; i < barCount; i++) {
-                if (state === 'disconnected') {
-                    targetValues[i] = 1;
-                } else if (state === 'connecting') {
-                    const angleOffset = (i / barCount) * Math.PI * 2;
-                    const distanceToSpinner = Math.abs(Math.sin((angleOffset - tick * 2) / 2));
-                    targetValues[i] = distanceToSpinner < 0.2 ? 10 * (1 - distanceToSpinner * 5) : 2;
-                } else if (state === 'listening') {
-                    targetValues[i] = 2 + (Math.sin(tick * 1.5) + 1) * 2;
-                } else if (state === 'thinking') {
-                    targetValues[i] = 2 + (Math.sin(tick * -2 + (i * Math.PI * 6 / barCount)) + 1) * 6;
-                } else if (state === 'speaking' && dataArray) {
-                    // Distribute frequencies symmetrically across the ring
-                    const halfBar = barCount / 2;
-                    const mirrorIndex = i < halfBar ? i : barCount - i;
-                    const usefulFrequencies = Math.floor(dataArray.length * 0.3);
-
-                    const dataIndex = Math.floor((mirrorIndex / halfBar) * usefulFrequencies);
-                    targetValues[i] = Math.max(2, (dataArray[dataIndex] / 255) * 45);
-                }
-            }
-
-            const tension = state === 'speaking' ? 0.4 : 0.1;
-            for (let i = 0; i < barCount; i++) {
-                smoothedValues[i] += (targetValues[i] - smoothedValues[i]) * tension;
-            }
-
-            // Draw glow ring if volume is high
-            const maxVal = Math.max(...smoothedValues);
-            if (state === 'speaking' && maxVal > 15) {
-                const glowIntensity = Math.min(maxVal / 45, 1);
-                ctx.beginPath();
-                ctx.arc(centerX, centerY, baseRadius + 4, 0, Math.PI * 2);
-                ctx.strokeStyle = activeHighlightColor;
-                ctx.globalAlpha = 0.15 * glowIntensity;
-                ctx.lineWidth = 10;
-                ctx.filter = `blur(${8 * glowIntensity}px)`;
-                ctx.stroke();
-                ctx.filter = 'none';
-                ctx.globalAlpha = 1.0;
-            }
-
-            // Draw the visualizer rays
-            for (let i = 0; i < barCount; i++) {
-                const value = smoothedValues[i];
-                const angle = (i / barCount) * Math.PI * 2 - Math.PI / 2;
-
-                const x1 = centerX + Math.cos(angle) * baseRadius;
-                const y1 = centerY + Math.sin(angle) * baseRadius;
-                const x2 = centerX + Math.cos(angle) * (baseRadius + value);
-                const y2 = centerY + Math.sin(angle) * (baseRadius + value);
-
-                const normalizedProgress = Math.min(value / 35, 1);
-                const alpha = 0.3 + (normalizedProgress * 0.7);
-
-                const gradient = ctx.createLinearGradient(x1, y1, x2, y2);
-                gradient.addColorStop(0, activeMainColor);
-                gradient.addColorStop(1, activeHighlightColor);
-
-                ctx.beginPath();
-                ctx.moveTo(x1, y1);
-                ctx.lineTo(x2, y2);
-                ctx.strokeStyle = gradient;
-                ctx.lineWidth = 2.5;
-                ctx.lineCap = 'round';
-                ctx.globalAlpha = alpha;
-                ctx.stroke();
-                ctx.globalAlpha = 1.0;
-            }
-
-            animationId = requestAnimationFrame(draw);
+        const update = () => {
+            analyser.getByteFrequencyData(dataArray);
+            let sum = 0;
+            for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+            const avg = sum / dataArray.length;
+            const vol = Math.min(avg / 128, 1.0);
+            
+            // Smoothing for visual flow
+            setVolume(v => v + (vol - v) * 0.2);
+            volumeRef.current = volumeRef.current + (vol - volumeRef.current) * 0.2;
+            
+            rafId = requestAnimationFrame(update);
         };
-
-        // Prime first resolution instantly
-        const initialStyle = getComputedStyle(colorTracker);
-        if (initialStyle.color && initialStyle.color !== 'rgba(0, 0, 0, 0)' && initialStyle.color !== 'transparent') {
-            activeMainColor = initialStyle.color;
-            activeHighlightColor = initialStyle.backgroundColor;
-        }
-
-        draw();
+        update();
 
         return () => {
-            cancelAnimationFrame(animationId);
-            if (source) source.disconnect();
-            if (analyser) analyser.disconnect();
-            if (audioCtx) audioCtx.close();
+            cancelAnimationFrame(rafId);
+            audioContext.close();
         };
-    }, [audioTrack, state]);
+    }, [audioTrack, state, volumeProp]);
+
+    // Define activeColor based on state
+    const activeColor = state === 'error' ? '#ef4444' : 
+                       state === 'connecting' ? '#3b82f6' : 
+                       state === 'listening' ? '#22d3ee' : 
+                       color;
+
+    // WebGL Setup
+    useEffect(() => {
+        if (!canvasRef.current || theme === 'bars') return;
+
+        const canvas = canvasRef.current;
+        const gl = canvas.getContext('webgl', { alpha: true });
+        if (!gl) return;
+        glRef.current = gl;
+
+        // Compile Shaders
+        const createShader = (type: number, source: string) => {
+            const shader = gl.createShader(type)!;
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+            return shader;
+        };
+
+        const program = gl.createProgram()!;
+        gl.attachShader(program, createShader(gl.VERTEX_SHADER, vertexShaderSource));
+        gl.attachShader(program, createShader(gl.FRAGMENT_SHADER, fragmentShaderSource));
+        gl.linkProgram(program);
+        gl.useProgram(program);
+        programRef.current = program;
+
+        // Create a full-screen quad (triangle that covers everything)
+        // We use a large triangle to avoid having to setup multiple triangles
+        const buffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+            -1, -1, 0, 0,
+            3, -1, 2, 0,
+            -1, 3, 0, 2,
+        ]), gl.STATIC_DRAW);
+
+        const posAttr = gl.getAttribLocation(program, 'position');
+        const uvAttr = gl.getAttribLocation(program, 'uv');
+        gl.enableVertexAttribArray(posAttr);
+        gl.enableVertexAttribArray(uvAttr);
+        gl.vertexAttribPointer(posAttr, 2, gl.FLOAT, false, 16, 0);
+        gl.vertexAttribPointer(uvAttr, 2, gl.FLOAT, false, 16, 8);
+
+        let raf: number;
+        const render = (t: number) => {
+            if (!glRef.current || !programRef.current) return;
+            const gl = glRef.current;
+            const prog = programRef.current;
+            
+            const rgb = hexToRgb(color);
+            const amp = 0.18 + volumeRef.current * 1.7;
+            const spd = 0.75 + volumeRef.current * 0.5;
+
+            // Set Uniforms
+            gl.uniform1f(gl.getUniformLocation(prog, 'uTime'), t * 0.001);
+            gl.uniform3f(gl.getUniformLocation(prog, 'uColor'), rgb[0], rgb[1], rgb[2]);
+            gl.uniform2f(gl.getUniformLocation(prog, 'uResolution'), canvas.width, canvas.height);
+            gl.uniform1f(gl.getUniformLocation(prog, 'uAmplitude'), amp);
+            gl.uniform1f(gl.getUniformLocation(prog, 'uSpeed'), spd);
+
+            gl.clearColor(0, 0, 0, 0);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            gl.drawArrays(gl.TRIANGLES, 0, 3);
+            
+            raf = requestAnimationFrame(render);
+        };
+        raf = requestAnimationFrame(render);
+
+        return () => cancelAnimationFrame(raf);
+    }, [theme, color]);
+
+    const scale = 1 + volume * 0.35;
+    const glowOpacity = 0.25 + volume * 0.75;
 
     return (
-        <Box style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-            {/* Invisible tracker rendered alongside to strictly inherit current DOM/Theme variables passively */}
-            <div
-                ref={colorTrackerRef}
-                style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', color: 'var(--accent-9)', backgroundColor: 'var(--accent-11)', width: '1px', height: '1px' }}
-            >.</div>
-            <canvas
-                ref={canvasRef}
-                style={{ width: '160px', height: '160px' }}
-            />
+        <Box style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%', height: '100%' }}>
+            {theme === 'circle' ? (
+                <div style={{ position: 'relative', width: '180px', height: '180px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {/* Shadow / Base Glow */}
+                    <div 
+                        style={{ 
+                            position: 'absolute', 
+                            inset: 0, 
+                            borderRadius: '50%', 
+                            backgroundColor: color, 
+                            filter: 'blur(30px)', 
+                            opacity: glowOpacity * 0.3,
+                            transform: `scale(${scale * 1.2})`,
+                            transition: 'transform 0.15s ease-out'
+                        }} 
+                    />
+                    
+                    {/* The Iridescent Orb */}
+                    <div style={{ 
+                        position: 'relative',
+                        width: '120px', 
+                        height: '120px', 
+                        borderRadius: '50%', 
+                        overflow: 'hidden',
+                        boxShadow: `0 0 50px ${color}44`,
+                        transform: `scale(${scale})`,
+                        transition: 'transform 0.15s ease-out',
+                        border: `2px solid ${color}33`
+                    }}>
+                        <canvas 
+                            ref={canvasRef} 
+                            width={300} 
+                            height={300} 
+                            style={{ width: '100%', height: '100%', display: 'block' }}
+                        />
+                    </div>
+                </div>
+            ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', height: '60px', padding: '10px' }}>
+                    {[0.6, 1.0, 0.8, 1.2, 0.9, 0.7].map((scaleFactor, i) => (
+                        <div 
+                            key={i}
+                            style={{
+                                width: '8px',
+                                height: `${20 + (volume * 40 * scaleFactor)}px`,
+                                minHeight: '8px',
+                                backgroundColor: activeColor,
+                                borderRadius: '10px',
+                                transition: 'height 0.1s ease-out',
+                                opacity: 0.7 + (volume * 0.3),
+                                boxShadow: `0 0 10px ${activeColor}66`
+                            }}
+                        />
+                    ))}
+                </div>
+            )}
         </Box>
     );
 }

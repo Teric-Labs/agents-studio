@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  # PhosAI Agents Studio
+  phosai-agents-studio:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: phosai-agents-studio
+    ports:
+      - "5173:5173"
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=development
+    networks:
+      - phosai-agents-studio-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    volumes:
+      - ./src:/app/src
+      - ./public:/app/public
+      - ./package.json:/app/package.json
+      - ./tsconfig.json:/app/tsconfig.json
+      - ./tsconfig.node.json:/app/tsconfig.node.json
+      - ./vite.config.ts:/app/vite.config.ts
+      - ./Dockerfile:/app/Dockerfile
+      - ./docker-compose.yml:/app/docker-compose.yml
+
+networks:
+  phosai-agents-studio-network:
+    driver: bridge

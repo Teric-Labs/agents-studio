@@ -45,8 +45,8 @@ const TaskNode = ({ id, data, selected }: any) => {
     const borderColor = selected ? 'var(--accent-8)' : 'var(--gray-5)';
 
     // Icon color handling
-    const iconBgColor = isStart ? 'var(--green-3)' : isEnd ? 'var(--red-3)' : 'var(--accent-3)';
-    const iconColor = isStart ? 'var(--green-11)' : isEnd ? 'var(--red-11)' : 'var(--accent-11)';
+    const iconBgColor = isStart ? 'var(--amber-3)' : isEnd ? 'var(--red-3)' : 'var(--accent-3)';
+    const iconColor = isStart ? 'var(--amber-11)' : isEnd ? 'var(--red-11)' : 'var(--accent-11)';
 
     return (
         <div style={{
@@ -80,10 +80,10 @@ const TaskNode = ({ id, data, selected }: any) => {
 
                 {/* Body */}
                 <Flex direction="column" gap="2" style={{ padding: '16px', flexGrow: 1 }}>
-                    <Text size="1" weight="bold" color="gray" style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    <Text size="1" weight="bold" style={{ textTransform: 'uppercase', letterSpacing: '0.05em', color: '#111827' }}>
                         Prompt
                     </Text>
-                    <Text size="2" style={{ lineHeight: '1.6', color: 'var(--gray-11)', whiteSpace: 'pre-wrap' }}>
+                    <Text size="2" style={{ lineHeight: '1.6', color: '#111827', whiteSpace: 'pre-wrap' }}>
                         {data.description || 'No prompt defined. Open settings to configure instructions for the AI.'}
                     </Text>
                 </Flex>
@@ -287,7 +287,7 @@ function AgentWorkflowBuilderInternal({ initialNodesData, onSaveData, activeNode
                 >
                     <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="var(--gray-a6)" />
                     <MiniMap nodeColor={(n) => {
-                        if (n.type === 'input') return 'var(--green-9)';
+                        if (n.type === 'input') return 'var(--amber-9)';
                         if (n.type === 'output') return 'var(--red-9)';
                         return 'var(--blue-9)';
                     }} />
@@ -300,7 +300,7 @@ function AgentWorkflowBuilderInternal({ initialNodesData, onSaveData, activeNode
                             borderRadius: '10px', 
                             border: '1px solid var(--gray-5)',
                             boxShadow: 'var(--shadow-4)',
-                            color: 'var(--gray-11)'
+                            color: '#111827'
                         }}>
                             {/* Group 1: Navigation */}
                             <Flex gap="4" px="3" style={{ borderRight: '1px solid var(--gray-5)' }}>
@@ -406,7 +406,7 @@ function AgentWorkflowBuilderInternal({ initialNodesData, onSaveData, activeNode
                             <Flex direction="column" gap="3">
                                 <Flex direction="column" gap="1">
                                     <Text size="2" weight="bold">Node Label</Text>
-                                    <Text size="1" color="gray">Display name on the graph</Text>
+                                    <Text size="1" style={{ color: '#111827' }}>Display name on the graph</Text>
                                     <TextField.Root
                                         size="2"
                                         placeholder="e.g. Collect Name"
@@ -421,7 +421,7 @@ function AgentWorkflowBuilderInternal({ initialNodesData, onSaveData, activeNode
 
                                 <Flex direction="column" gap="1">
                                     <Text size="2" weight="bold">Step Objective (Prompt)</Text>
-                                    <Text size="1" color="gray">Detailed instructions for the AI for this specific step.</Text>
+                                    <Text size="1" style={{ color: '#111827' }}>Detailed instructions for the AI for this specific step.</Text>
                                     <TextArea
                                         size="2"
                                         placeholder="e.g. Politely ask the user for their full name and wait for their response."
@@ -446,7 +446,7 @@ function AgentWorkflowBuilderInternal({ initialNodesData, onSaveData, activeNode
 
                         {selectedEdge && (
                             <Flex direction="column" gap="3">
-                                <Text size="2" color="gray">Define the explicit Logic Condition Outcome String the LLM uses to branch here.</Text>
+                                <Text size="2" style={{ color: '#111827' }}>Define the explicit Logic Condition Outcome String the LLM uses to branch here.</Text>
                                 <TextField.Root
                                     size="2"
                                     placeholder="e.g. Yes"
@@ -470,14 +470,14 @@ function AgentWorkflowBuilderInternal({ initialNodesData, onSaveData, activeNode
 									Delete Element
 								</Button>
 							</AlertDialog.Trigger>
-							<AlertDialog.Content maxWidth="450px">
-								<AlertDialog.Title style={{ color: '#1e293b', fontWeight: 800 }}>Delete Graph Element</AlertDialog.Title>
-								<AlertDialog.Description size="2">
+							<AlertDialog.Content maxWidth="450px" style={{ border: '1px solid #e5e7eb', borderRadius: '12px', backgroundColor: '#ffffff', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.12)' }}>
+								<AlertDialog.Title style={{ color: '#111827', fontWeight: 800 }}>Delete Graph Element</AlertDialog.Title>
+								<AlertDialog.Description size="2" style={{ color: '#111827' }}>
 									Are you sure you want to remove this {selectedNode ? 'Task Node' : 'Logical Edge'}? Any connected logic paths will be severed.
 								</AlertDialog.Description>
 								<Flex gap="3" mt="4" justify="end">
 									<AlertDialog.Cancel>
-										<Button variant="soft" color="gray">Cancel</Button>
+										<Button variant="soft" color="amber">Cancel</Button>
 									</AlertDialog.Cancel>
 									<AlertDialog.Action>
 										<Button variant="solid" color="red" onClick={() => {

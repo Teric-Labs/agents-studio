@@ -138,13 +138,13 @@ export const KnowledgeBaseManager: React.FC = () => {
   const filteredFiles = files.filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
-    <Card size="2">
+    <Card size="2" style={{ borderRadius: 'var(--radius-2)', backgroundColor: '#ffffff', border: '1px solid #e5e7eb', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
       <Flex direction="column" gap="5">
         {/* Header - Global Standard Header for Management Views */}
         <Flex direction={{ initial: 'column', md: 'row' }} justify="between" align={{ initial: 'stretch', md: 'center' }} gap="4">
           <Box>
-            <Heading size={{ initial: '3', md: '4' }} mb="1" style={{ color: '#1e293b', fontWeight: 800 }}>Knowledge Base</Heading>
-            <Text size={{ initial: '1', md: '2' }} color="gray">Upload and manage documents for RAG indexing</Text>
+            <Heading size={{ initial: '3', md: '4' }} mb="1" style={{ color: '#111827', fontWeight: 800 }}>Knowledge Base</Heading>
+            <Text size={{ initial: '1', md: '2' }} style={{ color: '#111827' }}>Upload and manage documents for RAG indexing</Text>
           </Box>
           <Flex gap="3" direction={{ initial: 'column', md: 'row' }} align={{ initial: 'stretch', md: 'center' }}>
             <TextField.Root placeholder="Search documents..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} size="2">
@@ -153,21 +153,21 @@ export const KnowledgeBaseManager: React.FC = () => {
             
             <Dialog.Root open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
               <Dialog.Trigger>
-                <Button color="teal" size="2" variant="solid">
+                <Button size="2" variant="solid" style={{ backgroundColor: '#f0ad44', color: '#211d1e' }}>
                   <Plus size={16} /> Upload Document
                 </Button>
               </Dialog.Trigger>
-              <Dialog.Content maxWidth="520px">
+              <Dialog.Content maxWidth="520px" style={{ border: '1px solid #e5e7eb', borderRadius: '12px', backgroundColor: '#ffffff', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.12)' }}>
                 <Box>
                   <Flex align="center" gap="3" mb="1">
-                    <Box p="2" style={{ backgroundColor: 'var(--teal-3)', color: 'var(--teal-9)', borderRadius: 'var(--radius-3)' }}>
+                    <Box p="2" style={{ backgroundColor: '#fffbeb', color: '#92400e', borderRadius: 'var(--radius-3)' }}>
                       <HardDrive size={24} />
                     </Box>
-                    <Dialog.Title style={{ margin: 0, fontWeight: 800, fontSize: '24px', letterSpacing: '-0.02em', color: '#1e293b' }}>
+                    <Dialog.Title style={{ margin: 0, fontWeight: 800, fontSize: '24px', letterSpacing: '-0.02em', color: '#111827' }}>
                       Upload Knowledge
                     </Dialog.Title>
                   </Flex>
-                  <Dialog.Description size="2">
+                  <Dialog.Description size="2" style={{ color: '#111827' }}>
                     Expand your agent's universe. Add documents to power its long-term memory and RAG capabilities.
                   </Dialog.Description>
                 </Box>
@@ -184,26 +184,26 @@ export const KnowledgeBaseManager: React.FC = () => {
                   />
                   <Button 
                     variant="surface" 
-                    color="teal" 
-                    style={{ width: '100%', height: '120px', border: '2px dashed var(--teal-5)' }}
+                    color="amber" 
+                    style={{ width: '100%', height: '120px', border: '2px dashed #fcd34d' }}
                   >
                     <Flex direction="column" align="center" gap="2">
                       {isUploading ? <Spinner size="3" /> : <Upload size={32} />}
                       <Text size="2" weight="bold">{isUploading ? 'Uploading...' : 'Click or Drop File'}</Text>
-                      <Text size="1" color="gray">Maximum file size: 50MB</Text>
+                      <Text size="1" style={{ color: '#111827' }}>Maximum file size: 50MB</Text>
                     </Flex>
                   </Button>
                 </Box>
                 
                 <Flex gap="3" mt="5" justify="end">
                   <Dialog.Close>
-                    <Button variant="soft" color="gray">Cancel</Button>
+                    <Button variant="soft" color="amber">Cancel</Button>
                   </Dialog.Close>
                 </Flex>
               </Dialog.Content>
             </Dialog.Root>
 
-            <Button variant="soft" color="gray" onClick={fetchFiles} disabled={isLoading}>
+            <Button variant="soft" color="amber" onClick={fetchFiles} disabled={isLoading}>
               <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
             </Button>
           </Flex>
@@ -217,7 +217,7 @@ export const KnowledgeBaseManager: React.FC = () => {
           </Callout.Root>
         )}
         {successMessage && (
-          <Callout.Root color="green" variant="soft" size="1">
+          <Callout.Root color="amber" variant="soft" size="1">
             <Callout.Icon><CheckCircle2 size={18} /></Callout.Icon>
             <Callout.Text>{successMessage}</Callout.Text>
           </Callout.Root>
@@ -241,8 +241,8 @@ export const KnowledgeBaseManager: React.FC = () => {
               <Table.Row>
                 <Table.Cell colSpan={5} align="center" style={{ padding: '60px 0' }}>
                   <Flex direction="column" align="center" gap="2">
-                    <FileText size={32} color="#94a3b8" />
-                    <Text color="gray" size="2" weight="medium">No documents indexed in your knowledge base.</Text>
+                    <FileText size={32} color="#111827" />
+                    <Text size="2" weight="medium" style={{ color: '#111827' }}>No documents indexed in your knowledge base.</Text>
                   </Flex>
                 </Table.Cell>
               </Table.Row>
@@ -254,7 +254,7 @@ export const KnowledgeBaseManager: React.FC = () => {
                     case 'pdf': return { label: 'PDF', color: 'red' as const, icon: <FileText size={18} /> };
                     case 'xlsx': 
                     case 'xls': 
-                    case 'csv': return { label: 'Excel/Data', color: 'green' as const, icon: <HardDrive size={18} /> };
+                    case 'csv': return { label: 'Excel/Data', color: 'orange' as const, icon: <HardDrive size={18} /> };
                     case 'doc':
                     case 'docx': return { label: 'Word', color: 'blue' as const, icon: <FileText size={18} /> };
                     case 'txt':
@@ -273,7 +273,7 @@ export const KnowledgeBaseManager: React.FC = () => {
                         </Box>
                         <Box>
                           <Text size="2" weight="bold" as="div">{file.name}</Text>
-                          <Text size="1" color="gray">{typeInfo.label}</Text>
+                          <Text size="1" style={{ color: '#111827' }}>{typeInfo.label}</Text>
                         </Box>
                       </Flex>
                     </Table.Cell>
@@ -283,10 +283,10 @@ export const KnowledgeBaseManager: React.FC = () => {
                       </Badge>
                     </Table.Cell>
                     <Table.Cell>
-                      <Badge color="gray" variant="surface" radius="full">{formatSize(file.size)}</Badge>
+                      <Badge variant="surface" radius="full" style={{ color: '#111827' }}>{formatSize(file.size)}</Badge>
                     </Table.Cell>
                     <Table.Cell>
-                      <Text size="2" color="gray">{formatDate(file.modified)}</Text>
+                      <Text size="2" style={{ color: '#111827' }}>{formatDate(file.modified)}</Text>
                     </Table.Cell>
                     <Table.Cell>
                       <Flex gap="2" justify="center" align="center">
@@ -294,13 +294,13 @@ export const KnowledgeBaseManager: React.FC = () => {
                           <AlertDialog.Trigger>
                             <Button size="1" variant="ghost" color="red"><Trash2 size={14} /> Remove</Button>
                           </AlertDialog.Trigger>
-                          <AlertDialog.Content maxWidth="450px">
-                            <AlertDialog.Title style={{ fontWeight: 800, color: '#1e293b' }}>Delete Document</AlertDialog.Title>
-                            <AlertDialog.Description size="2">
+                          <AlertDialog.Content maxWidth="450px" style={{ border: '1px solid #e5e7eb', borderRadius: '12px', backgroundColor: '#ffffff', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.12)' }}>
+                            <AlertDialog.Title style={{ fontWeight: 800, color: '#111827' }}>Delete Document</AlertDialog.Title>
+                            <AlertDialog.Description size="2" style={{ color: '#111827' }}>
                               Are you sure? This document will be permanently removed from the agent's memory and knowledge base indexing.
                             </AlertDialog.Description>
                             <Flex gap="3" mt="4" justify="end" align="center">
-                              <AlertDialog.Cancel><Button variant="soft" color="gray"><X size={16}/> Cancel</Button></AlertDialog.Cancel>
+                              <AlertDialog.Cancel><Button variant="soft" color="amber"><X size={16}/> Cancel</Button></AlertDialog.Cancel>
                               <AlertDialog.Action>
                                 <Button variant="solid" color="red" onClick={() => handleDelete(file.name)}><Trash2 size={16}/> Delete</Button>
                               </AlertDialog.Action>
@@ -318,12 +318,12 @@ export const KnowledgeBaseManager: React.FC = () => {
         </Box>
 
         {/* Global Toolbar Footer */}
-        <Flex direction={{ initial: 'column', sm: 'row' }} justify="between" align={{ initial: 'start', sm: 'center' }} gap="4" pt="2" style={{ borderTop: '1px solid var(--gray-4)' }}>
-          <Text size="1" color="gray" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <Flex direction={{ initial: 'column', sm: 'row' }} justify="between" align={{ initial: 'start', sm: 'center' }} gap="4" pt="2" style={{ borderTop: '1px solid #e5e7eb' }}>
+          <Text size="1" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#111827' }}>
             <AlertCircle size={14} /> 
             Vector embeddings are updated automatically on every upload.
           </Text>
-          <Button variant="soft" color="teal" size="1" onClick={handleReindex} disabled={isReindexing}>
+          <Button variant="soft" color="amber" size="1" onClick={handleReindex} disabled={isReindexing}>
             <RefreshCw size={14} className={isReindexing ? 'animate-spin' : ''} /> Force Global Re-Index
           </Button>
         </Flex>
