@@ -19,6 +19,7 @@ export default defineConfig(({ mode }) => {
       include: ['firebase/app', 'firebase/auth'],
     },
     server: {
+      allowedHosts: env.VITE_NGROK_HOST ? [env.VITE_NGROK_HOST] : [],
       proxy: {
         '/phosai-api': {
           target: phosaiUrl,
