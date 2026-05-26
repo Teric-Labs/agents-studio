@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import * as LiveKitSDK from 'livekit-client';
-import { Activity, BarChart, Bell, Book, Bot, Brain, Briefcase, Building2, Calendar, Car, Check, CheckCircle, CheckSquare, ChevronLeft, ChevronRight, Code, Copy, Eye, EyeOff, ExternalLink, Globe, GraduationCap, Hammer, Headphones, HeartHandshake, History, Key, LogOut, Menu, MessageSquare, MessageSquareOff, Mic, Music, Palette, Phone, PhoneOff, Plane, Plus, RefreshCw, Save, Scale, Search, Settings, ShoppingCart, SlidersHorizontal, Stethoscope, Trash2, Truck, Undo, User, UserCheck, UtensilsCrossed, Volume2, Workflow, X } from 'lucide-react';
+import { Activity, BarChart, Bell, Book, Bot, Brain, Briefcase, Building2, Calendar, Car, Check, CheckCircle, CheckSquare, ChevronLeft, ChevronRight, Code, Copy, Eye, EyeOff, ExternalLink, Globe, GraduationCap, Hammer, Headphones, HeartHandshake, History, Key, LogOut, Menu, MessageSquare, MessageSquareOff, Mic, MoreVertical, Music, Palette, Phone, PhoneOff, Plane, Play, Plus, RefreshCw, Save, Scale, Search, Settings, ShoppingCart, SlidersHorizontal, Stethoscope, Trash2, Truck, Undo, User, UserCheck, UtensilsCrossed, Volume2, Workflow, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import GmailIcon from '../assets/gmail.svg';
 import GoogleCalendarIcon from '../assets/googlecalendar.svg';
@@ -20,7 +20,9 @@ import { AgentChatTranscript } from '../components/agents-ui/agent-chat-transcri
 import { AgentChatIndicator } from '../components/agents-ui/agent-chat-indicator';
 import * as Toast from '@radix-ui/react-toast';
 
-const API_BASE = 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+const IS_DEV = import.meta.env.DEV;
+const PHOSAI_TTS_URL = IS_DEV ? '/phosai-api' : (import.meta.env.VITE_PHOSAI_TTS_URL || 'https://laurine-unappropriable-unvolcanically.ngrok-free.app');
 
 // Add axios interceptor to include Firebase token
 axios.interceptors.request.use(async (config) => {
@@ -31,11 +33,121 @@ axios.interceptors.request.use(async (config) => {
 	return config;
 });
 
+import WaveSurfer from 'wavesurfer.js';
+import * as Flags from 'country-flag-icons/react/3x2';
+
 type ProviderConfig = {
 	features: string[];
 	models?: any[];
 	voice_options?: any[];
 	config_fields?: any[];
+};
+
+const VoiceCard = ({ voice, playingVoiceId, previewAudioUrl, onPlayToggle, themeColor = '#f0ad44', showToast }: any) => {
+	const containerRef = useRef<HTMLDivElement>(null);
+	const wsRef = useRef<WaveSurfer | null>(null);
+	const isActive = playingVoiceId === voice.id;
+	const FlagComponent = voice.flag && (Flags as any)[voice.flag] ? (Flags as any)[voice.flag] : null;
+
+	useEffect(() => {
+		if (containerRef.current && !wsRef.current) {
+			wsRef.current = WaveSurfer.create({
+				container: containerRef.current,
+				waveColor: '#d1d5db',
+				progressColor: themeColor,
+				barWidth: 3,
+				barGap: 2,
+				barRadius: 2,
+				height: 30,
+				cursorWidth: 0,
+				interact: false,
+			});
+			
+			const fakePeaks = Array.from({ length: 40 }).map((_, i) => Math.abs(Math.sin(i * 0.4)) * 0.5 + Math.random() * 0.5);
+			wsRef.current.load('', [fakePeaks]);
+			
+			wsRef.current.on('finish', () => {
+				onPlayToggle(voice.id, true);
+			});
+		}
+		return () => {
+			if (wsRef.current) {
+				wsRef.current.destroy();
+				wsRef.current = null;
+			}
+		};
+	}, []);
+
+	useEffect(() => {
+		if (wsRef.current) {
+			if (isActive) {
+				wsRef.current.setOptions({ waveColor: '#9ca3af' });
+				if (previewAudioUrl) {
+					wsRef.current.load(previewAudioUrl).then(() => {
+						wsRef.current?.play();
+					});
+				}
+			} else {
+				wsRef.current.setOptions({ waveColor: '#d1d5db' });
+				wsRef.current.stop();
+			}
+		}
+	}, [isActive, previewAudioUrl]);
+
+	return (
+		<Card size="2" style={{ borderRadius: '12px', border: '1px solid #e5e7eb', backgroundColor: '#ffffff', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
+			<Flex direction="column" gap="3" style={{ height: '100%' }}>
+				<Flex justify="between" align="start">
+					<Flex gap="3" align="center">
+						<IconButton radius="full" size="3" style={{ backgroundColor: themeColor, color: '#ffffff', cursor: 'pointer' }} onClick={() => onPlayToggle(voice.id, false)} disabled={isActive && !previewAudioUrl}>
+							{isActive && !previewAudioUrl ? <RefreshCw size={18} className="animate-spin" /> : (isActive ? <span style={{ width: '12px', height: '12px', backgroundColor: '#fff', display: 'inline-block', borderRadius: '2px' }} /> : <Play size={18} style={{ marginLeft: '2px', fill: 'currentColor' }} />)}
+						</IconButton>
+						<Box>
+							<Flex gap="2" align="center">
+								{FlagComponent ? (
+									<Box style={{ width: '20px', display: 'flex', alignItems: 'center' }}>
+										<FlagComponent title={voice.flag} style={{ width: '100%', borderRadius: '2px' }} />
+									</Box>
+								) : (
+									<span style={{ fontSize: '14px' }}>{voice.flag}</span>
+								)}
+								<Text size="3" weight="bold" style={{ color: '#111827', display: 'block', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={voice.name}>{voice.name}</Text>
+								<Text size="2" style={{ color: '#6b7280' }}>{voice.gender}</Text>
+							</Flex>
+							<Flex gap="2" align="center" style={{ marginTop: '2px' }}>
+								<Text size="1" style={{ color: '#9ca3af', fontFamily: 'monospace' }}>{voice.id}</Text>
+								<Copy size={10} color="#9ca3af" style={{ cursor: 'pointer' }} onClick={() => { navigator.clipboard.writeText(voice.id); showToast("ID Copied", "Voice ID has been copied to clipboard."); }} />
+							</Flex>
+						</Box>
+					</Flex>
+					<IconButton variant="ghost" size="1" style={{ color: '#9ca3af' }}>
+						<MoreVertical size={16} />
+					</IconButton>
+				</Flex>
+				
+				<Box my="2">
+					<Flex justify="between" mb="1">
+						<Text size="1" style={{ color: isActive ? themeColor : '#9ca3af', fontWeight: 600 }}>0:00</Text>
+						<Text size="1" style={{ color: '#9ca3af', fontWeight: 600 }}>0:10</Text>
+					</Flex>
+					<div style={{ position: 'relative', height: '30px', display: 'flex', alignItems: 'center' }}>
+						<div style={{ position: 'absolute', width: '100%', borderTop: '1px dashed #d1d5db', top: '50%' }} />
+						<div ref={containerRef} style={{ width: '100%', zIndex: 1 }} />
+					</div>
+				</Box>
+
+				<Flex gap="2" wrap="wrap" mt="1">
+					{(voice.tags || []).map((tag: string) => (
+						<Badge key={tag} color="gray" variant="surface" size="1" style={{ backgroundColor: '#f3f4f6', color: '#374151', borderRadius: '4px', fontWeight: 500 }}>{tag}</Badge>
+					))}
+				</Flex>
+
+				<Text size="2" style={{ color: '#4b5563', lineHeight: 1.5, marginTop: '4px', flexGrow: 1 }}>
+					{voice.description}
+				</Text>
+			</Flex>
+		</Card>
+	);
 };
 
 export default function App() {
@@ -80,9 +192,8 @@ export default function App() {
 	const [currentAgent, setCurrentAgent] = useState<any>(null);
 
 	// UI State
-	const [activeView, setActiveView] = useState<'dashboard' | 'builder' | 'knowledge' | 'workflows' | 'logs'>('dashboard');
+	const [activeView, setActiveView] = useState<'dashboard' | 'builder' | 'voices' | 'knowledge' | 'workflows' | 'logs' | 'agent-detail'>('dashboard');
 	const [editingWorkflowId, setEditingWorkflowId] = useState<string | null>(null);
-	const [isBuilderOpen, setIsBuilderOpen] = useState(false);
 	const [showMobileMenu, setShowMobileMenu] = useState(false);
 	const [isCallActive, setIsCallActive] = useState(false);
 	const [isConnecting, setIsConnecting] = useState(false);
@@ -97,7 +208,19 @@ export default function App() {
 	const transcriptsRef = useRef<any[]>([]);
 	const roomRef = useRef<LiveKitSDK.Room | null>(null);
 	const audioElementRef = useRef<HTMLAudioElement | null>(null);
-
+	const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
+	const [previewAudioUrl, setPreviewAudioUrl] = useState<string | null>(null);
+	const [phosAiVoices, setPhosAiVoices] = useState<any[]>([]);
+	const [voiceSearch, setVoiceSearch] = useState('');
+	const [voiceCategory, setVoiceCategory] = useState('all_voices');
+	const [voiceLanguage, setVoiceLanguage] = useState('all_langs');
+	const [voiceCountry, setVoiceCountry] = useState('all_countries');
+	const [voiceGender, setVoiceGender] = useState('all_genders');
+	const [cloneAudioFile, setCloneAudioFile] = useState<File | null>(null);
+	const [cloneRefText, setCloneRefText] = useState('');
+	const [cloneText, setCloneText] = useState('');
+	const [clonedAudioUrl, setClonedAudioUrl] = useState('');
+	const [isCloning, setIsCloning] = useState(false);
 	// Logs state
 	const [logs, setLogs] = useState<any[]>([]);
 	const [isLoadingLogs, setIsLoadingLogs] = useState(false);
@@ -108,6 +231,7 @@ export default function App() {
 	const [logPage, setLogPage] = useState(1);
 	const [selectedLogForTranscript, setSelectedLogForTranscript] = useState<any>(null);
 	const [isTranscriptModalOpen, setIsTranscriptModalOpen] = useState(false);
+	const [isSummaryExpanded, setIsSummaryExpanded] = useState(true);
 	const [isVoiceUIOpen, setIsVoiceUIOpen] = useState(false);
 	const LOG_PAGE_SIZE = 10;
 
@@ -455,6 +579,179 @@ export default function App() {
 		}
 	};
 
+	const pcmToWav = (pcmArrayBuffer: ArrayBuffer, sampleRate: number = 16000) => {
+		const numChannels = 1;
+		const byteRate = sampleRate * numChannels * 2;
+		const blockAlign = numChannels * 2;
+		const dataSize = pcmArrayBuffer.byteLength;
+		const buffer = new ArrayBuffer(44 + dataSize);
+		const view = new DataView(buffer);
+
+		const writeString = (view: DataView, offset: number, string: string) => {
+			for (let i = 0; i < string.length; i++) {
+				view.setUint8(offset + i, string.charCodeAt(i));
+			}
+		};
+
+		writeString(view, 0, 'RIFF');
+		view.setUint32(4, 36 + dataSize, true);
+		writeString(view, 8, 'WAVE');
+		writeString(view, 12, 'fmt ');
+		view.setUint32(16, 16, true);
+		view.setUint16(20, 1, true);
+		view.setUint16(22, numChannels, true);
+		view.setUint32(24, sampleRate, true);
+		view.setUint32(28, byteRate, true);
+		view.setUint16(32, blockAlign, true);
+		view.setUint16(34, 16, true);
+		writeString(view, 36, 'data');
+		view.setUint32(40, dataSize, true);
+
+		const pcmData = new Uint8Array(pcmArrayBuffer);
+		const targetData = new Uint8Array(buffer, 44);
+		targetData.set(pcmData);
+
+		return new Blob([buffer], { type: 'audio/wav' });
+	};
+
+	const playVoicePreview = async (voiceId: string, stopOnly = false) => {
+		if (playingVoiceId === voiceId || stopOnly) {
+			setPlayingVoiceId(null);
+			setPreviewAudioUrl(null);
+			return;
+		}
+
+		try {
+			setPlayingVoiceId(voiceId);
+			setPreviewAudioUrl(null);
+
+			let previewText = "Hello there! I am a PhosAI voice, powered by our advanced text to speech technology. I'm ready to bring your agent to life.";
+			if (voiceId.includes('ach')) previewText = "Itye nining! An abedo dwan me PhosAI, ma tic gi teknoloji me text-to-speech. Atye atera me miyo kwo ki tic meri.";
+			else if (voiceId.includes('teo')) previewText = "Yoga! Eong ebe eporoto loka PhosAI, lo iswama kwape teknoloji lo eyangari akiro na egirat akiro. Ekaparit eong aingarakin ijo.";
+			else if (voiceId.includes('nyn')) previewText = "Agandi! Ndi eiraka rya PhosAI erikukoresa tekinologiya empya ya text-to-speech. Nyeteekateekire kuha amagara ejenti yaawe.";
+			else if (voiceId.includes('swa')) previewText = "Hujambo! Mimi ni sauti ya PhosAI, inayowezeshwa na teknolojia yetu ya hali ya juu ya maandishi-kwa-sauti. Niko tayari kuleta uhai kwa wakala wako.";
+			else if (voiceId.includes('lug')) previewText = "Oli otya! Nze ddoboozi lya PhosAI, erikozesebwa tekinologiya waffe ow'omulembe owa text-to-speech. Ndi mwetegefu okussa obulamu mu ejenti wo.";
+			else if (voiceId.includes('xog')) previewText = "Otyano! Nze iloboozi lya PhosAI, elikola ku tekinologiya waffe owa text-to-speech. Ndi mwetegefu okuwa obulamu eri ejenti wo.";
+			else if (voiceId.includes('kin')) previewText = "Muraho! Ndi ijwi rya PhosAI, rikoreshwa n'ikoranabuhanga ryacu rigezweho rya text-to-speech. Niteguye guha ubuzima agenti wawe.";
+			else if (voiceId.includes('luo')) previewText = "Idhi nade! An dwol mar PhosAI, ma tiyo gi tekinoloji ma chung' e malo mar text-to-speech. Aseikora mondo akel ngima ne agent mari.";
+			else if (voiceId.includes('kik')) previewText = "Wĩ mwega! Ndĩ mũgambo wa PhosAI, ũrĩa ũhũthagĩra tekinorojĩ yetũ njĩkĩrĩku ya text-to-speech. Ndĩ mwĩhaarĩrie kũhe agenti yaku muoyo.";
+			else if (voiceId.includes('hau')) previewText = "Sannu! Ni murya ce ta PhosAI, wadda fasahar mu ta ci gaba ta text-to-speech ke tafiyarwa. A shirye nake in kawo rayuwa ga wakilin ku.";
+			else if (voiceId.includes('ibo')) previewText = "Ndeewo! Abụ m olu PhosAI, nke nkà na ụzụ text-to-speech anyị kachasị elu kwadoro. Adị m njikere inye onye nnọchi anya gị ndụ.";
+			else if (voiceId.includes('twi')) previewText = "Maakye! Mene PhosAI nne, a yɛn mfiridwuma a ɛkɔ anim a wɔde kyerɛw nsɛm kɔ nne mu na ɛma tumi. Masiesie me ho sɛ mɛma w'ananmusifo no anya nkwa.";
+			else if (voiceId.includes('yor')) previewText = "Bawo ni! Emi ni ohùn PhosAI kan, ti agbara nipasẹ imọ-ẹrọ text-to-speech ti ilọsiwaju wa. Mo ti ṣetan lati fun aṣoju rẹ ni igbesi aye.";
+			else if (voiceId.includes('wol')) previewText = "Nanga def! Man dama aw batou PhosAI, biy dox ak sunu teknoloji bu bees bi di text-to-speech. Pare na pour jox dund sa agent.";
+			else if (voiceId.includes('pcm')) previewText = "How far! I be PhosAI voice, powered by our advanced text-to-speech technology. I ready to bring your agent to life.";
+
+			const response = await fetch(`${PHOSAI_TTS_URL}/v1/audio/speech/stream`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+				body: JSON.stringify({
+					text: previewText,
+					voice: voiceId,
+					speaker_id: voiceId,
+					temperature: 0.1
+				})
+			});
+
+			if (!response.ok) throw new Error('Failed to fetch preview');
+
+			const pcmBuffer = await response.arrayBuffer();
+			const wavBlob = pcmToWav(pcmBuffer, 16000);
+			const audioUrl = URL.createObjectURL(wavBlob);
+
+			setPreviewAudioUrl(audioUrl);
+		} catch (err) {
+			console.error('Error playing voice:', err);
+			setPlayingVoiceId(null);
+			setPreviewAudioUrl(null);
+			showToast("Preview Failed", "Service is not available. Please try again later.");
+		}
+	};
+
+	const handleVoiceClone = async () => {
+		if (!cloneAudioFile || !cloneText.trim()) return;
+
+		try {
+			setIsCloning(true);
+			if (audioElementRef.current) {
+				audioElementRef.current.pause();
+			}
+
+			const formData = new FormData();
+			formData.append('text', cloneText);
+			formData.append('reference_audio', cloneAudioFile, cloneAudioFile.name || 'audio.wav');
+			if (cloneRefText.trim()) formData.append('reference_text', cloneRefText);
+			formData.append('temperature', '0.1');
+
+			const response = await fetch(`${PHOSAI_TTS_URL}/v1/audio/speech/clone/upload`, {
+				method: 'POST',
+				headers: { 'ngrok-skip-browser-warning': 'true' },
+				body: formData
+			});
+
+			if (!response.ok) throw new Error('Failed to clone voice');
+
+			const contentType = response.headers.get('Content-Type') || '';
+			let audioUrl = '';
+
+			if (contentType.includes('application/json')) {
+				const data = await response.json();
+				if (data.error) throw new Error(data.error);
+				if (typeof data === 'string') audioUrl = data;
+				else if (data.url) audioUrl = data.url;
+				else if (data.audio_base64) audioUrl = `data:audio/wav;base64,${data.audio_base64}`;
+			} else {
+				const pcmBuffer = await response.arrayBuffer();
+				if (pcmBuffer.byteLength === 0) {
+					throw new Error("Backend returned no audio data. It may have run out of memory or encountered an error during streaming.");
+				}
+				if (contentType.includes('audio/')) {
+					const blob = new Blob([pcmBuffer], { type: contentType });
+					audioUrl = URL.createObjectURL(blob);
+				} else {
+					const wavBlob = pcmToWav(pcmBuffer, 16000);
+					audioUrl = URL.createObjectURL(wavBlob);
+				}
+			}
+
+			if (audioUrl) {
+				setClonedAudioUrl(audioUrl);
+			}
+			showToast("Success", "Custom voice cloned and synthesized successfully!");
+		} catch (err) {
+			console.error('Error cloning voice:', err);
+			showToast("Cloning Failed", "Service is not available. Please try again later.");
+		} finally {
+			setIsCloning(false);
+		}
+	};
+
+	const getPhosAiVoiceDetails = (voice: any) => {
+		// Logic moved to backend. The backend now returns the full voice object with name, flag, tags, gender, and description.
+		return voice;
+	};
+
+	useEffect(() => {
+		if (activeView === 'voices' && phosAiVoices.length === 0) {
+			const fetchVoices = async () => {
+				try {
+					const res = await fetch(`${API_BASE}/v1/voices`, {
+						headers: { 'ngrok-skip-browser-warning': 'true' }
+					});
+					if (res.ok) {
+						const data = await res.json();
+						if (data.speaker_ids) {
+							setPhosAiVoices(data.speaker_ids);
+						}
+					}
+				} catch (e) {
+					console.error("Failed to fetch voices from API", e);
+				}
+			};
+			fetchVoices();
+		}
+	}, [activeView, phosAiVoices.length]);
+
 	const loadProviders = async () => {
 		try {
 			const response = await axios.get(`${API_BASE}/providers`);
@@ -520,7 +817,7 @@ export default function App() {
 			setSelectedToolCategories([]);
 			setWebSearchEnabled(false);
 			setTavilyApiKey('');
-			if (canOpenModal) setIsBuilderOpen(true);
+			if (canOpenModal) setActiveView('agent-detail');
 			return;
 		}
 
@@ -571,7 +868,7 @@ export default function App() {
 			setCreationStep('CONFIG');
 
 			if (canOpenModal) {
-				setIsBuilderOpen(true);
+				setActiveView('agent-detail');
 			}
 		}
 	};
@@ -651,7 +948,7 @@ export default function App() {
 				setCurrentAgent(response.data);
 				if (!silent) showToast("Agent Created", `Successfully created ${agentName}.`);
 			}
-			setIsBuilderOpen(false);
+			setActiveView('builder');
 			loadAgentsList();
 		} catch (error: any) {
 			console.error('Failed to save agent', error);
@@ -686,7 +983,7 @@ export default function App() {
 				setCurrentAgent(null);
 				setAgentName('');
 				setInstructions('');
-				setIsBuilderOpen(false);
+				setActiveView('builder');
 			}
 			loadAgentsList();
 			showToast("Agent Deleted", "The agent has been removed successfully.");
@@ -796,7 +1093,7 @@ export default function App() {
 						});
 
 						// 2. Save with summary
-						await axios.post(`${API_BASE}/agents/${targetAgent.name}/transcripts`, {
+						await axios.post(`${API_BASE}/agents/${targetAgent.id}/transcripts`, {
 							session_id: `voice-session-${Date.now()}`,
 							conversation_type: 'voice',
 							transcripts: transcriptsRef.current,
@@ -808,7 +1105,7 @@ export default function App() {
 					} catch (err) {
 						console.error('Failed to summarize or save session', err);
 						// Fallback save without summary
-						axios.post(`${API_BASE}/agents/${targetAgent.name}/transcripts`, {
+						axios.post(`${API_BASE}/agents/${targetAgent.id}/transcripts`, {
 							session_id: `voice-session-${Date.now()}`,
 							conversation_type: 'voice',
 							transcripts: transcriptsRef.current
@@ -933,7 +1230,7 @@ export default function App() {
 				chatRoomRef.current = null;
 				setIsChatConnecting(false);
 				if (transcriptsRef.current.length > 0) {
-					axios.post(`${API_BASE}/agents/${targetAgent.name}/transcripts`, {
+					axios.post(`${API_BASE}/agents/${targetAgent.id}/transcripts`, {
 						session_id: `chat-session-${Date.now()}`,
 						conversation_type: 'chat',
 						transcripts: transcriptsRef.current
@@ -1048,8 +1345,9 @@ export default function App() {
 
 						<Box style={{ flexGrow: 1, padding: '16px 12px', overflowY: 'auto' }}>
 							{[
-								{ id: 'dashboard', label: 'Dashboard', icon: <SlidersHorizontal size={18} /> },
-								{ id: 'builder', label: 'Agents', icon: <Bot size={18} /> },
+								{ id: 'dashboard', label: 'Analytics', icon: <BarChart size={18} /> },
+								{ id: 'builder', label: 'Agents', icon: <Brain size={18} /> },
+								{ id: 'voices', label: 'Voice Library', icon: <Mic size={18} /> },
 								{ id: 'workflows', label: 'Workflows', icon: <Workflow size={18} /> },
 								{ id: 'knowledge', label: 'Knowledge Base', icon: <Book size={18} /> },
 								{ id: 'logs', label: 'Conversation History', icon: <History size={18} /> }
@@ -1131,8 +1429,9 @@ export default function App() {
 
 							<Box style={{ flexGrow: 1, padding: '16px 12px', overflowY: 'auto' }}>
 								{[
-									{ id: 'dashboard', label: 'Dashboard', icon: <SlidersHorizontal size={18} /> },
-									{ id: 'builder', label: 'Agents', icon: <Bot size={18} /> },
+									{ id: 'dashboard', label: 'Analytics', icon: <BarChart size={18} /> },
+									{ id: 'builder', label: 'Agents', icon: <Brain size={18} /> },
+									{ id: 'voices', label: 'Voice Library', icon: <Mic size={18} /> },
 									{ id: 'workflows', label: 'Workflows', icon: <Workflow size={18} /> },
 									{ id: 'knowledge', label: 'Knowledge Base', icon: <Book size={18} /> },
 									{ id: 'logs', label: 'Conversation History', icon: <History size={18} /> }
@@ -1287,7 +1586,8 @@ export default function App() {
 						</Flex>
 					</header>
 
-					<Box p={{ initial: "4", md: "6", lg: "8" }}>
+					{activeView !== 'agent-detail' && (
+						<Box p={{ initial: "4", md: "6", lg: "8" }}>
 						{activeView === 'dashboard' ? (
 							<Flex direction="column" gap="6">
 								{/* Metrics */}
@@ -1529,7 +1829,6 @@ export default function App() {
 									<Table.Root variant="ghost" size="1">
 										<Table.Header>
 											<Table.Row>
-												<Table.ColumnHeaderCell>SESSION</Table.ColumnHeaderCell>
 												<Table.ColumnHeaderCell>AGENT</Table.ColumnHeaderCell>
 												<Table.ColumnHeaderCell>TYPE</Table.ColumnHeaderCell>
 												<Table.ColumnHeaderCell>MESSAGES</Table.ColumnHeaderCell>
@@ -1558,19 +1857,11 @@ export default function App() {
 												</Table.Row>
 											) : paginatedLogs.map(log => (
 												<Table.Row key={log.id} align="center">
-													{/* Session ID */}
-													<Table.Cell>
-														<Tooltip content={log.session_id}>
-															<Text size="1" style={{ color: '#111827', fontFamily: 'monospace', backgroundColor: '#f8fafc', padding: '2px 6px', borderRadius: '4px', cursor: 'help' }}>
-																{log.session_id?.substring(0, 12)}...
-															</Text>
-														</Tooltip>
-													</Table.Cell>
 													{/* Agent */}
 													<Table.Cell>
 														<Flex align="center" gap="2">
 															<Box style={{ width: '28px', height: '28px', borderRadius: '6px', backgroundColor: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-																<Bot size={14} color="#111827" />
+																<Brain size={14} color="#111827" />
 															</Box>
 															<Text size="2" weight="medium" style={{ color: '#111827' }}>{log.agent_name}</Text>
 														</Flex>
@@ -1682,17 +1973,31 @@ export default function App() {
 													<Table.ColumnHeaderCell>INDUSTRY</Table.ColumnHeaderCell>
 													<Table.ColumnHeaderCell>USE CASE</Table.ColumnHeaderCell>
 													<Table.ColumnHeaderCell>MODE</Table.ColumnHeaderCell>
-													<Table.ColumnHeaderCell justify="center">ACTIONS</Table.ColumnHeaderCell>
 												</Table.Row>
 											</Table.Header>
 
 											<Table.Body>
-												{paginatedAgents.map((agent) => (
-													<Table.Row key={agent.id} align="center" style={{ cursor: 'pointer', backgroundColor: currentAgent?.id === agent.id ? '#fffbeb' : 'transparent', borderLeft: currentAgent?.id === agent.id ? '4px solid #f0ad44' : 'none' }} onClick={() => loadAgent(agent.id, false)}>
+												{paginatedAgents.map((agent) => {
+													const isSelected = currentAgent?.id === agent.id;
+													return (
+													<Table.Row 
+														key={agent.id} 
+														align="center" 
+														className={`transition-colors duration-200 cursor-pointer ${isSelected ? 'bg-[#fffbeb]' : 'hover:bg-slate-50'}`}
+														style={{ 
+															boxShadow: isSelected ? 'inset 4px 0 0 0 #f0ad44' : 'inset 4px 0 0 0 transparent',
+														}} 
+														onClick={() => loadAgent(agent.id, true)}
+													>
 														<Table.Cell>
 															<Flex align="center" gap="3">
-																<Box style={{ width: '36px', height: '36px', borderRadius: 'var(--radius-1)', backgroundColor: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-																	<Bot size={20} style={{ color: '#111827' }} />
+																<Box style={{ 
+																	width: '36px', height: '36px', borderRadius: '8px', 
+																	backgroundColor: isSelected ? '#fde68a' : '#f1f5f9', 
+																	display: 'flex', alignItems: 'center', justifyContent: 'center',
+																	transition: 'background-color 0.2s ease'
+																}}>
+																	<Brain size={20} style={{ color: isSelected ? '#92400e' : '#475569', transition: 'color 0.2s ease' }} />
 																</Box>
 																<Box>
 																	<Text size="2" weight="bold" as="div">{agent.name || agent.config?.name}</Text>
@@ -1740,68 +2045,9 @@ export default function App() {
 																{agent.config?.agent_type === 'workflow' ? 'WORKFLOW' : 'GENERAL'}
 															</Badge>
 														</Table.Cell>
-														<Table.Cell>
-															<Flex gap="2" justify="center" align="center">
-																<Button
-																	variant={isCallActive && currentAgent?.id === agent.id ? "solid" : "soft"}
-																	color={isCallActive && currentAgent?.id === agent.id ? "red" : "amber"}
-																	size="1"
-																	loading={isConnecting && currentAgent?.id === agent.id}
-																	disabled={isConnecting || isChatConnecting || agent.config?.chat_only}
-																	onClick={(e) => {
-																		e.stopPropagation();
-																		if (currentAgent?.id !== agent.id) {
-																			loadAgent(agent.id, false);
-																		}
-																		// Ensure branding is passed to the bar indirectly via currentAgent or by passing props
-																		toggleCall(agent);
-																	}}
-																>
-																	{isCallActive && currentAgent?.id === agent.id ? <PhoneOff size={14} /> : <Phone size={14} />}
-																	{agent.config?.chat_only ? "Chat Only" : (isCallActive && currentAgent?.id === agent.id ? "Stop" : "Voice")}
-																</Button>
-																<Button
-																	variant={isChatActive && currentAgent?.id === agent.id ? "solid" : "soft"}
-																	color={isChatActive && currentAgent?.id === agent.id ? "red" : "blue"}
-																	size="1"
-																	loading={isChatConnecting && currentAgent?.id === agent.id}
-																	disabled={isChatConnecting || isConnecting}
-																	onClick={(e) => {
-																		e.stopPropagation();
-																		if (currentAgent?.id !== agent.id) {
-																			loadAgent(agent.id, false);
-																		}
-																		toggleChatSession(agent);
-																	}}
-																>
-																	{isChatActive && currentAgent?.id === agent.id ? <X size={14} /> : <MessageSquare size={14} />}
-																	{isChatActive && currentAgent?.id === agent.id ? "End" : "Chat"}
-																</Button>
-																<Button variant="ghost" size="1" style={{ color: '#111827' }} onClick={(e) => { e.stopPropagation(); loadAgent(agent.id, true); }}><SlidersHorizontal size={14} /> Config</Button>
-
-																<AlertDialog.Root>
-																	<AlertDialog.Trigger>
-																		<Button variant="ghost" color="red" size="1" onClick={(e) => e.stopPropagation()}><Trash2 size={14} /> Remove</Button>
-																	</AlertDialog.Trigger>
-																	<AlertDialog.Content maxWidth="450px" onClick={(e) => e.stopPropagation()} style={{ border: '1px solid #e5e7eb', borderRadius: '12px', backgroundColor: '#ffffff', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.12)' }}>
-																		<AlertDialog.Title style={{ color: '#111827', fontWeight: 800 }}>Delete Agent</AlertDialog.Title>
-																		<AlertDialog.Description size="2" style={{ color: '#111827' }}>
-																			Permanent deletion of agent <b>{agent.name || "this agent"}</b>. This session will be disconnected and all session history will be archived.
-																		</AlertDialog.Description>
-																		<Flex gap="3" mt="4" justify="end" align="center">
-																			<AlertDialog.Cancel>
-																				<Button variant="soft" color="amber"><X size={16} /> Cancel</Button>
-																			</AlertDialog.Cancel>
-																			<AlertDialog.Action>
-																				<Button variant="solid" color="red" onClick={() => deleteAgent(agent.id, true)}><Trash2 size={16} /> Delete Agent</Button>
-																			</AlertDialog.Action>
-																		</Flex>
-																	</AlertDialog.Content>
-																</AlertDialog.Root>
-															</Flex>
-														</Table.Cell>
 													</Table.Row>
-												))}
+												);
+											})}
 												{agentsList.length === 0 && (
 													<Table.Row>
 														<Table.Cell colSpan={5} style={{ textAlign: 'center', padding: '40px' }}>
@@ -1825,8 +2071,134 @@ export default function App() {
 									)}
 								</Card>
 							</Box>
+						) : activeView === 'voices' ? (
+							<Box>
+								{/* Voices Library Header & Search */}
+								<Flex direction={{ initial: 'column', md: 'row' }} justify="between" align={{ initial: 'stretch', md: 'center' }} gap="4" mb="6">
+									<TextField.Root placeholder="Search voices by name, description, or ID..." size="3" value={voiceSearch} onChange={(e) => setVoiceSearch(e.target.value)} style={{ flex: 1, backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #e5e7eb', maxWidth: '600px' }}>
+										<TextField.Slot>
+											<Search size={16} color="#6b7280" />
+										</TextField.Slot>
+									</TextField.Root>
+									<Flex gap="3" direction={{ initial: 'column', sm: 'row' }}>
+										<Select.Root value={voiceCategory} onValueChange={setVoiceCategory} size="2">
+											<Select.Trigger style={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '8px', minWidth: '140px' }} />
+											<Select.Content>
+												<Select.Item value="all_voices">All Voices</Select.Item>
+												<Select.Item value="custom">Custom Voices</Select.Item>
+												<Select.Item value="catalog">Voice Catalog</Select.Item>
+											</Select.Content>
+										</Select.Root>
+										<Select.Root value={voiceLanguage} onValueChange={setVoiceLanguage} size="2">
+											<Select.Trigger style={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '8px', minWidth: '140px' }} />
+											<Select.Content>
+												<Select.Item value="all_langs">All Languages</Select.Item>
+												<Select.Item value="eng">English</Select.Item>
+												<Select.Item value="ach">Acholi</Select.Item>
+												<Select.Item value="teo">Ateso</Select.Item>
+												<Select.Item value="nyn">Runyankore</Select.Item>
+												<Select.Item value="swa">Swahili</Select.Item>
+												<Select.Item value="lug">Luganda</Select.Item>
+												<Select.Item value="xog">Lusoga</Select.Item>
+												<Select.Item value="kin">Kinyarwanda</Select.Item>
+												<Select.Item value="luo">Luo</Select.Item>
+												<Select.Item value="kik">Kikuyu</Select.Item>
+												<Select.Item value="hau">Hausa</Select.Item>
+												<Select.Item value="ibo">Igbo</Select.Item>
+												<Select.Item value="twi">Twi</Select.Item>
+												<Select.Item value="yor">Yoruba</Select.Item>
+												<Select.Item value="wol">Wolof</Select.Item>
+												<Select.Item value="pcm">Pidgin</Select.Item>
+												<Select.Item value="fat">Fula</Select.Item>
+											</Select.Content>
+										</Select.Root>
+										<Select.Root value={voiceCountry} onValueChange={setVoiceCountry} size="2">
+											<Select.Trigger style={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '8px', minWidth: '140px' }} />
+											<Select.Content>
+												<Select.Item value="all_countries">All Countries</Select.Item>
+												<Select.Item value="UG">Uganda (UG)</Select.Item>
+												<Select.Item value="KE">Kenya (KE)</Select.Item>
+												<Select.Item value="RW">Rwanda (RW)</Select.Item>
+												<Select.Item value="NG">Nigeria (NG)</Select.Item>
+												<Select.Item value="GH">Ghana (GH)</Select.Item>
+												<Select.Item value="SN">Senegal (SN)</Select.Item>
+												<Select.Item value="GN">Guinea (GN)</Select.Item>
+											</Select.Content>
+										</Select.Root>
+										<Select.Root value={voiceGender} onValueChange={setVoiceGender} size="2">
+											<Select.Trigger style={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '8px', minWidth: '140px' }} />
+											<Select.Content>
+												<Select.Item value="all_genders">All Genders</Select.Item>
+												<Select.Item value="M">Male</Select.Item>
+												<Select.Item value="F">Female</Select.Item>
+											</Select.Content>
+										</Select.Root>
+									</Flex>
+								</Flex>
+
+								{/* Custom Voice Cloning */}
+								<Box mb="8">
+									<Heading size="4" mb="4" style={{ color: '#111827', fontWeight: 700 }}>Custom Voice Cloning</Heading>
+									<Card size="2" style={{ backgroundColor: '#fafafa', border: '1px solid #e5e7eb', borderRadius: '12px' }}>
+										<Flex direction="column" gap="4">
+											<Text size="2" style={{ color: '#4b5563' }}>Upload a reference audio file to instantly clone a voice and synthesize new speech.</Text>
+											<Grid columns={{ initial: '1', md: '2' }} gap="4">
+												<Flex direction="column" gap="3">
+													<label>
+														<Text size="2" weight="bold" style={{ color: '#374151', marginBottom: '4px', display: 'block' }}>Reference Audio (WAV/MP3)</Text>
+														<input type="file" accept="audio/*" onChange={(e) => setCloneAudioFile(e.target.files?.[0] || null)} style={{ display: 'block', width: '100%', padding: '8px', border: '1px solid #e5e7eb', borderRadius: '8px', backgroundColor: '#fff' }} />
+													</label>
+													<label>
+														<Text size="2" weight="bold" style={{ color: '#374151', marginBottom: '4px', display: 'block' }}>Reference Text (Optional)</Text>
+														<TextField.Root placeholder="Transcript of the reference audio..." value={cloneRefText} onChange={e => setCloneRefText(e.target.value)} />
+													</label>
+												</Flex>
+												<Flex direction="column" gap="3">
+													<label style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+														<Text size="2" weight="bold" style={{ color: '#374151', marginBottom: '4px', display: 'block' }}>Text to Synthesize</Text>
+														<TextArea placeholder="Enter the text you want the cloned voice to say..." value={cloneText} onChange={e => setCloneText(e.target.value)} style={{ flexGrow: 1 }} />
+													</label>
+												</Flex>
+											</Grid>
+											<Flex justify="between" align="center">
+												<Box>
+													{clonedAudioUrl && (
+														<audio controls src={clonedAudioUrl} style={{ height: '40px', maxWidth: '300px' }} autoPlay />
+													)}
+												</Box>
+												<Button style={{ backgroundColor: '#f0ad44', color: '#ffffff' }} onClick={handleVoiceClone} disabled={isCloning || !cloneAudioFile || !cloneText.trim()}>
+													{isCloning ? <RefreshCw size={16} className="animate-spin" /> : <Mic size={16} />}
+													Generate Custom Voice
+												</Button>
+											</Flex>
+										</Flex>
+									</Card>
+								</Box>
+
+								{/* Voice Catalog */}
+								<Box>
+									<Heading size="4" mb="4" style={{ color: '#111827', fontWeight: 700 }}>Voice Catalog ({phosAiVoices.length})</Heading>
+									<Grid columns={{ initial: '1', sm: '2', md: '3', xl: '4' }} gap="4">
+										{phosAiVoices
+											.filter((voice: any) => {
+												if (voiceLanguage !== 'all_langs' && !voice.id.includes(voiceLanguage)) return false;
+												if (voiceCountry !== 'all_countries' && voice.flag !== voiceCountry) return false;
+												if (voiceGender !== 'all_genders' && voice.gender !== voiceGender) return false;
+												if (voiceSearch) {
+													const term = voiceSearch.toLowerCase();
+													if (!voice.name.toLowerCase().includes(term) && !voice.id.toLowerCase().includes(term)) return false;
+												}
+												return true;
+											})
+											.map((voice: any) => (
+												<VoiceCard key={voice.id} voice={voice} playingVoiceId={playingVoiceId} previewAudioUrl={previewAudioUrl} onPlayToggle={playVoicePreview} themeColor="#f0ad44" showToast={showToast} />
+											))}
+									</Grid>
+								</Box>
+							</Box>
 						) : null}
-					</Box>
+						</Box>
+					)}
 
 					{/* Live Voice/Chat Interaction Right Panel */}
 					<>
@@ -1872,7 +2244,7 @@ export default function App() {
 										<IconButton variant="ghost" style={{ color: '#111827' }} onClick={() => setIsVoiceUIOpen(false)}><X size={18} /></IconButton>
 									</div>
 
-									<Tabs.Root defaultValue="voice" style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc' }}>
+									<Tabs.Root defaultValue="voice" style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc', minHeight: 0, overflow: 'hidden' }}>
 										<Box px="4" pt="3" style={{ backgroundColor: '#ffffff', borderBottom: '1px solid #e2e8f0' }}>
 											<Tabs.List size="2" color="amber">
 												<Tabs.Trigger value="voice" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1889,9 +2261,28 @@ export default function App() {
 												{/* Small Centered Visualizer */}
 												<div style={{ position: 'relative', width: '150px', height: '150px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
 													{!isCallActive && !isConnecting && (
-														<div style={{ width: '120px', height: '120px', borderRadius: '50%', border: '4px dashed #cbd5e1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', gap: '12px' }}>
-															<Phone size={32} color="#111827" />
-															<Text size="1" weight="bold" style={{ color: '#111827' }}>Ready</Text>
+														<div style={{ 
+															width: '130px', 
+															height: '130px', 
+															borderRadius: '50%', 
+															display: 'flex', 
+															flexDirection: 'column', 
+															alignItems: 'center', 
+															justifyContent: 'center', 
+															backgroundColor: '#ffffff', 
+															border: '1.5px solid #f1f5f9',
+															boxShadow: '0 10px 40px rgba(0, 0, 0, 0.03), inset 0 -2px 10px rgba(0, 0, 0, 0.01)',
+															gap: '12px' 
+														}}>
+															<div style={{ 
+																width: '52px', height: '52px', borderRadius: '50%', 
+																backgroundColor: '#fffbeb', color: '#f0ad44', 
+																display: 'flex', alignItems: 'center', justifyContent: 'center',
+																boxShadow: '0 4px 12px rgba(240, 173, 68, 0.15)' 
+															}}>
+																<Phone size={24} />
+															</div>
+															<Text size="2" weight="bold" style={{ color: '#64748b', letterSpacing: '0.01em' }}>READY</Text>
 														</div>
 													)}
 													{(isCallActive || isConnecting) && (
@@ -1909,8 +2300,8 @@ export default function App() {
 											</div>
 										</Tabs.Content>
 
-										<Tabs.Content value="chat" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-											<div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+										<Tabs.Content value="chat" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+											<div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden', padding: '12px' }}>
 												{transcripts.length > 0 ? (
 													<AgentChatTranscript messages={transformTranscripts(transcripts)} agentState={agentState === 'thinking' ? 'thinking' : agentState === 'speaking' ? 'speaking' : 'idle'} />
 												) : (
@@ -1921,32 +2312,77 @@ export default function App() {
 												)}
 											</div>
 
-											{/* In-tab chat input */}
+											{/* WhatsApp-style professional chat input */}
 											{(isCallActive || isChatActive) && (
-												<form onSubmit={(e) => { e.preventDefault(); sendChatMessage(); }} style={{ display: 'flex', gap: '12px', padding: '16px 20px', alignItems: 'flex-end', backgroundColor: '#ffffff', borderTop: '1px solid #e2e8f0' }}>
+												<form
+													onSubmit={(e) => { e.preventDefault(); sendChatMessage(); }}
+													style={{
+														display: 'flex',
+														gap: '10px',
+														padding: '12px 16px',
+														alignItems: 'center',
+														backgroundColor: '#ffffff',
+														borderTop: '1px solid #f1f5f9',
+														boxShadow: '0 -2px 10px rgba(0, 0, 0, 0.02)'
+													}}
+												>
 													<input
 														type="text"
 														value={chatInput}
 														onChange={e => setChatInput(e.target.value)}
-														placeholder="Type a message to the agent..."
-														style={{ flex: 1, padding: '14px 20px', borderRadius: '14px', border: '1.5px solid #e2e8f0', outline: 'none', fontSize: '15px', backgroundColor: '#f8fafc', transition: 'all 0.2s', fontFamily: 'inherit', minHeight: '48px' }}
-														onFocus={(e) => { e.currentTarget.style.borderColor = '#f59e0b'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(240, 173, 68, 0.35)'; }}
-														onBlur={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.boxShadow = 'none'; }}
+														placeholder="Type a message..."
+														style={{
+															flex: 1,
+															padding: '12px 20px',
+															borderRadius: '24px',
+															border: '1.5px solid #e2e8f0',
+															outline: 'none',
+															fontSize: '15px',
+															backgroundColor: '#f8fafc',
+															transition: 'all 0.2s ease',
+															fontFamily: 'inherit',
+															minHeight: '44px',
+															boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.02)'
+														}}
+														onFocus={(e) => {
+															e.currentTarget.style.borderColor = '#f0ad44';
+															e.currentTarget.style.boxShadow = '0 0 0 3px rgba(240, 173, 68, 0.25)';
+															e.currentTarget.style.backgroundColor = '#ffffff';
+														}}
+														onBlur={(e) => {
+															e.currentTarget.style.borderColor = '#e2e8f0';
+															e.currentTarget.style.boxShadow = 'inset 0 1px 2px rgba(0, 0, 0, 0.02)';
+															e.currentTarget.style.backgroundColor = '#f8fafc';
+														}}
 													/>
 													<button
 														type="submit"
 														disabled={!chatInput.trim()}
-														style={{ width: '52px', height: '52px', borderRadius: '14px', border: 'none', backgroundColor: chatInput.trim() ? (currentAgent?.config?.brand_color || brandColor) : '#e2e8f0', color: 'white', cursor: chatInput.trim() ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s', flexShrink: 0 }}
+														style={{
+															width: '44px',
+															height: '44px',
+															borderRadius: '50%',
+															border: 'none',
+															backgroundColor: chatInput.trim() ? '#f0ad44' : '#e2e8f0',
+															color: chatInput.trim() ? '#211d1e' : '#94a3b8',
+															cursor: chatInput.trim() ? 'pointer' : 'default',
+															display: 'flex',
+															alignItems: 'center',
+															justifyContent: 'center',
+															transition: 'all 0.2s ease',
+															flexShrink: 0,
+															boxShadow: chatInput.trim() ? '0 2px 8px rgba(240, 173, 68, 0.35)' : 'none'
+														}}
 													>
-														<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
+														<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: 'rotate(45deg) translate(-1px, 1px)' }}><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
 													</button>
 												</form>
 											)}
 										</Tabs.Content>
 									</Tabs.Root>
 
-									{/* Persistent Bottom Controls */}
-									<div style={{ borderTop: '1px solid #e2e8f0', backgroundColor: '#ffffff', flexShrink: 0, padding: '14px 20px', gap: '12px', display: 'flex' }}>
+									{/* Persistent Bottom Controls with thick, professional Etoil theme colors */}
+									<div style={{ borderTop: '1px solid #f1f5f9', backgroundColor: '#ffffff', flexShrink: 0, padding: '16px 20px', gap: '14px', display: 'flex', boxShadow: '0 -4px 12px rgba(0, 0, 0, 0.02)' }}>
 										<button
 											onClick={() => toggleCall()}
 											disabled={isConnecting || isChatConnecting || isChatActive || currentAgent?.config?.chat_only}
@@ -1956,17 +2392,50 @@ export default function App() {
 												alignItems: 'center',
 												justifyContent: 'center',
 												gap: '8px',
-												padding: '12px',
-												borderRadius: '12px',
-												border: 'none',
-												cursor: (isConnecting || isChatActive || currentAgent?.config?.chat_only) ? 'not-allowed' : 'pointer',
-												backgroundColor: isCallActive ? '#fee2e2' : '#fffbeb',
-												color: isCallActive ? '#dc2626' : '#92400e',
+												padding: '14px 18px',
+												borderRadius: '14px',
 												fontWeight: 700,
 												fontSize: '14px',
-												transition: 'all 0.2s',
-												opacity: (isChatActive || currentAgent?.config?.chat_only) ? 0.3 : 1,
-												fontFamily: 'inherit'
+												transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+												opacity: (isChatActive || currentAgent?.config?.chat_only) ? 0.35 : 1,
+												fontFamily: 'inherit',
+												cursor: (isConnecting || isChatActive || currentAgent?.config?.chat_only) ? 'not-allowed' : 'pointer',
+												backgroundColor: (isConnecting || isChatActive || currentAgent?.config?.chat_only)
+													? '#f1f5f9'
+													: isCallActive
+														? '#dc2626'
+														: '#f0ad44',
+												color: (isConnecting || isChatActive || currentAgent?.config?.chat_only)
+													? '#94a3b8'
+													: isCallActive
+														? '#ffffff'
+														: '#211d1e',
+												border: (isConnecting || isChatActive || currentAgent?.config?.chat_only)
+													? '1.5px solid #e2e8f0'
+													: isCallActive
+														? '1.5px solid #b91c1c'
+														: '1.5px solid #e09e34',
+												boxShadow: (isConnecting || isChatActive || currentAgent?.config?.chat_only)
+													? 'none'
+													: isCallActive
+														? '0 4px 14px rgba(220, 38, 38, 0.3)'
+														: '0 4px 14px rgba(240, 173, 68, 0.35)'
+											}}
+											onMouseEnter={(e) => {
+												if (!isConnecting && !isChatActive && !currentAgent?.config?.chat_only) {
+													e.currentTarget.style.transform = 'translateY(-1px)';
+													e.currentTarget.style.boxShadow = isCallActive 
+														? '0 6px 18px rgba(220, 38, 38, 0.4)' 
+														: '0 6px 18px rgba(240, 173, 68, 0.45)';
+												}
+											}}
+											onMouseLeave={(e) => {
+												e.currentTarget.style.transform = 'none';
+												e.currentTarget.style.boxShadow = (isConnecting || isChatActive || currentAgent?.config?.chat_only)
+													? 'none'
+													: isCallActive
+														? '0 4px 14px rgba(220, 38, 38, 0.3)'
+														: '0 4px 14px rgba(240, 173, 68, 0.35)';
 											}}
 										>
 											{isConnecting ? <RefreshCw size={16} className="animate-spin" /> : isCallActive ? <PhoneOff size={16} /> : <Phone size={16} />}
@@ -1981,17 +2450,50 @@ export default function App() {
 												alignItems: 'center',
 												justifyContent: 'center',
 												gap: '8px',
-												padding: '12px',
-												borderRadius: '12px',
-												border: 'none',
-												cursor: (isChatConnecting || isCallActive) ? 'not-allowed' : 'pointer',
-												backgroundColor: isChatActive ? '#fee2e2' : '#eff6ff',
-												color: isChatActive ? '#dc2626' : '#2563eb',
+												padding: '14px 18px',
+												borderRadius: '14px',
 												fontWeight: 700,
 												fontSize: '14px',
-												transition: 'all 0.2s',
-												opacity: (isCallActive) ? 0.3 : 1,
-												fontFamily: 'inherit'
+												transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+												opacity: (isCallActive) ? 0.35 : 1,
+												fontFamily: 'inherit',
+												cursor: (isChatConnecting || isCallActive) ? 'not-allowed' : 'pointer',
+												backgroundColor: (isChatConnecting || isConnecting || isCallActive)
+													? '#f1f5f9'
+													: isChatActive
+														? '#dc2626'
+														: '#211d1e',
+												color: (isChatConnecting || isConnecting || isCallActive)
+													? '#94a3b8'
+													: isChatActive
+														? '#ffffff'
+														: '#ffffff',
+												border: (isChatConnecting || isConnecting || isCallActive)
+													? '1.5px solid #e2e8f0'
+													: isChatActive
+														? '1.5px solid #b91c1c'
+														: '1.5px solid #141213',
+												boxShadow: (isChatConnecting || isConnecting || isCallActive)
+													? 'none'
+													: isChatActive
+														? '0 4px 14px rgba(220, 38, 38, 0.3)'
+														: '0 4px 14px rgba(33, 29, 30, 0.25)'
+											}}
+											onMouseEnter={(e) => {
+												if (!isChatConnecting && !isConnecting && !isCallActive) {
+													e.currentTarget.style.transform = 'translateY(-1px)';
+													e.currentTarget.style.boxShadow = isChatActive 
+														? '0 6px 18px rgba(220, 38, 38, 0.4)' 
+														: '0 6px 18px rgba(33, 29, 30, 0.35)';
+												}
+											}}
+											onMouseLeave={(e) => {
+												e.currentTarget.style.transform = 'none';
+												e.currentTarget.style.boxShadow = (isChatConnecting || isConnecting || isCallActive)
+													? 'none'
+													: isChatActive
+														? '0 4px 14px rgba(220, 38, 38, 0.3)'
+														: '0 4px 14px rgba(33, 29, 30, 0.25)';
 											}}
 										>
 											{isChatConnecting ? <RefreshCw size={16} className="animate-spin" /> : isChatActive ? <X size={16} /> : <MessageSquare size={16} />}
@@ -2009,10 +2511,10 @@ export default function App() {
 						</div>
 					</>
 
-					{/* Agent Builder Modal */}
-					<Dialog.Root open={isBuilderOpen} onOpenChange={setIsBuilderOpen}>
-						<Dialog.Content size="4" style={{ maxWidth: '1200px', padding: 0, border: '1px solid #e5e7eb', borderRadius: '12px', overflow: 'hidden', backgroundColor: '#ffffff', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.12)' }}>
-							<Flex direction="column" style={{ height: '85vh', overflow: 'hidden' }}>
+					{/* Agent Detail Full Page View */}
+					{activeView === 'agent-detail' && (
+						<Box p={{ initial: "4", md: "6", lg: "8" }}>
+							<Flex direction="column" style={{ minHeight: 'calc(100vh - 120px)', border: '1px solid #e5e7eb', borderRadius: '12px', overflow: 'hidden', backgroundColor: '#ffffff' }}>
 								<Box p="4" style={{ borderBottom: '1px solid #e5e7eb', backgroundColor: '#fafafa' }}>
 									<Flex justify="between" align="center">
 										<Box>
@@ -2020,18 +2522,61 @@ export default function App() {
 												<Box style={{ backgroundColor: '#fffbeb', color: '#92400e', padding: '6px', borderRadius: '8px' }}>
 													<Bot size={24} />
 												</Box>
-												<Dialog.Title style={{ margin: 0, fontWeight: 800, fontSize: '24px', letterSpacing: '-0.02em', color: '#111827' }}>
+												<Heading as="h2" style={{ margin: 0, fontWeight: 800, fontSize: '24px', letterSpacing: '-0.02em', color: '#111827' }}>
 													{currentAgent ? 'Edit Agent' : creationStep === 'CATEGORY' ? 'Select Agent Type' : creationStep === 'BUSINESS_INDUSTRY' ? 'Select Industry' : creationStep === 'BUSINESS_USE_CASE' || creationStep === 'PERSONAL_USE_CASE' ? 'Select Use Case' : 'Configure Agent'}
-												</Dialog.Title>
+												</Heading>
 											</Flex>
-											<Dialog.Description size="2" style={{ color: '#111827', marginLeft: '45px' }}>
+											<Text size="2" style={{ display: 'block', color: '#111827', marginLeft: '45px' }}>
 												{creationStep === 'CATEGORY' ? 'Choose the starting point for your new AI agent.' : creationStep === 'CONFIG' ? 'Fine-tune your agent behavior and technical settings.' : 'Tell us a bit more about what this agent will do.'}
-											</Dialog.Description>
+											</Text>
 										</Box>
 										<Flex gap="3" align="center">
-											<Dialog.Close>
-												<Button variant="ghost" size="2" style={{ color: '#111827' }}><X size={16} /> Cancel</Button>
-											</Dialog.Close>
+											{currentAgent && (
+												<Flex gap="2" mr="2">
+													<AlertDialog.Root>
+														<AlertDialog.Trigger>
+															<Button variant="soft" color="red" size="2"><Trash2 size={16} /> Delete</Button>
+														</AlertDialog.Trigger>
+														<AlertDialog.Content maxWidth="450px" style={{ border: '1px solid #e5e7eb', borderRadius: '12px', backgroundColor: '#ffffff' }}>
+															<AlertDialog.Title style={{ color: '#111827', fontWeight: 800 }}>Delete Agent</AlertDialog.Title>
+															<AlertDialog.Description size="2" style={{ color: '#111827' }}>
+																Permanent deletion of agent <b>{currentAgent.name}</b>. All session history will be archived.
+															</AlertDialog.Description>
+															<Flex gap="3" mt="4" justify="end">
+																<AlertDialog.Cancel>
+																	<Button variant="soft" color="amber"><X size={16} /> Cancel</Button>
+																</AlertDialog.Cancel>
+																<AlertDialog.Action>
+																	<Button variant="solid" color="red" onClick={() => deleteAgent(currentAgent.id, true)}><Trash2 size={16} /> Delete Agent</Button>
+																</AlertDialog.Action>
+															</Flex>
+														</AlertDialog.Content>
+													</AlertDialog.Root>
+													<Button
+														variant={isCallActive ? "solid" : "soft"}
+														color={isCallActive ? "red" : "amber"}
+														size="2"
+														loading={isConnecting}
+														disabled={isConnecting || isChatConnecting || currentAgent.config?.chat_only}
+														onClick={(e) => { e.stopPropagation(); toggleCall(currentAgent); }}
+													>
+														{isCallActive ? <PhoneOff size={16} /> : <Phone size={16} />}
+														{currentAgent.config?.chat_only ? "Chat Only" : (isCallActive ? "Stop Voice" : "Test Voice")}
+													</Button>
+													<Button
+														variant={isChatActive ? "solid" : "soft"}
+														color={isChatActive ? "red" : "blue"}
+														size="2"
+														loading={isChatConnecting}
+														disabled={isChatConnecting || isConnecting}
+														onClick={(e) => { e.stopPropagation(); toggleChatSession(currentAgent); }}
+													>
+														{isChatActive ? <X size={16} /> : <MessageSquare size={16} />}
+														{isChatActive ? "End Chat" : "Test Chat"}
+													</Button>
+												</Flex>
+											)}
+											<Button variant="ghost" size="2" style={{ color: '#111827' }} onClick={() => setActiveView('builder')}><X size={16} /> Close</Button>
 											{creationStep === 'CONFIG' && (
 												<Button variant="solid" size="2" style={{ backgroundColor: '#f0ad44', color: '#211d1e' }} onClick={() => createAgent()} loading={isLoading}>
 													{currentAgent ? <Save size={16} /> : <Check size={16} />}
@@ -2719,8 +3264,8 @@ export default function App() {
 									</Box>
 								</Box>
 							</Flex>
-						</Dialog.Content>
-					</Dialog.Root>
+						</Box>
+					)}
 
 					<Toast.Root className="ToastRoot" open={toastOpen} onOpenChange={setToastOpen} duration={3000}>
 						<Toast.Title className="ToastTitle">{toastContent.title}</Toast.Title>
@@ -2735,65 +3280,99 @@ export default function App() {
 					</Toast.Root>
 					<Toast.Viewport className="ToastViewport" />
 
-					{/* Transcript Detail Modal */}
-					<Dialog.Root open={isTranscriptModalOpen} onOpenChange={setIsTranscriptModalOpen}>
-						<Dialog.Content size="3" style={{ maxWidth: '90vw', width: '650px', padding: 0, borderRadius: '12px', overflow: 'hidden', border: '1px solid #e5e7eb', backgroundColor: '#ffffff', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.12)' }}>
-							<Box p="4" style={{ borderBottom: '1px solid #e5e7eb', backgroundColor: '#fafafa' }}>
-								<Flex justify="between" align="center">
-									<Box>
-										<Flex align="center" gap="2" mb="1">
-											<div style={{ backgroundColor: '#fffbeb', color: '#92400e', padding: '6px', borderRadius: '8px' }}>
-												<MessageSquare size={18} />
-											</div>
-											<Dialog.Title style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#111827' }}>Conversation Detail</Dialog.Title>
-										</Flex>
-										<Dialog.Description size="1" style={{ color: '#111827' }}>
-											Session {selectedLogForTranscript?.session_id?.substring(0, 12)}... • {selectedLogForTranscript?.created_at ? new Date(selectedLogForTranscript.created_at).toLocaleString() : ''}
-										</Dialog.Description>
-									</Box>
-									<Dialog.Close>
-										<IconButton variant="ghost" style={{ color: '#111827' }}><X size={18} /></IconButton>
-									</Dialog.Close>
-								</Flex>
-							</Box>
+					{/* Transcript Detail Side Panel */}
+					<>
+						<div
+							onClick={() => setIsTranscriptModalOpen(false)}
+							style={{
+								position: 'fixed',
+								inset: 0,
+								backgroundColor: 'rgba(0, 0, 0, 0.4)',
+								zIndex: 60,
+								opacity: isTranscriptModalOpen ? 1 : 0,
+								pointerEvents: isTranscriptModalOpen ? 'auto' : 'none',
+								transition: 'opacity 0.3s ease-out'
+							}}
+						/>
+						<div
+							style={{
+								position: 'fixed',
+								right: 0,
+								top: 0,
+								bottom: 0,
+								width: '600px',
+								maxWidth: '95vw',
+								backgroundColor: '#ffffff',
+								zIndex: 61,
+								display: 'flex',
+								flexDirection: 'column',
+								boxShadow: '-4px 0 24px rgba(0, 0, 0, 0.15)',
+								transform: isTranscriptModalOpen ? 'translateX(0)' : 'translateX(100%)',
+								transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+							}}
+						>
+							<div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px 20px', borderBottom: '1px solid #e2e8f0', flexShrink: 0, backgroundColor: '#ffffff' }}>
+								<div style={{ flex: 1 }}>
+									<Text size="3" weight="bold" style={{ color: '#111827', display: 'flex', alignItems: 'center', gap: '8px' }}>
+										{selectedLogForTranscript?.summary ? 'Conversation Detail' : 'Session Transcript'}
+										<ExternalLink size={14} style={{ color: '#94a3b8' }} />
+									</Text>
+									<Text size="1" style={{ color: '#64748b', display: 'block', marginTop: '4px' }}>
+										{selectedLogForTranscript?.agent_name} • {selectedLogForTranscript?.created_at ? new Date(selectedLogForTranscript.created_at).toLocaleString() : ''}
+									</Text>
+								</div>
+								<IconButton variant="ghost" style={{ color: '#111827' }} onClick={() => setIsTranscriptModalOpen(false)}><X size={18} /></IconButton>
+							</div>
 
-							<Box style={{ backgroundColor: '#ffffff' }}>
-								{selectedLogForTranscript?.summary && (
-									<Box p="4" m="3" style={{ backgroundColor: '#fffbeb', border: '1px solid #fcd34d', borderRadius: '12px' }}>
-										<Flex gap="2" align="start">
-											<div style={{ color: '#b45309', marginTop: '2px' }}><Brain size={16} /></div>
-											<Box>
-												<Text size="1" weight="bold" style={{ color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.05em' }}>AI Session Summary</Text>
-												<Text size="2" style={{ color: '#78350f', display: 'block', marginTop: '4px', lineHeight: '1.5' }}>
-													{selectedLogForTranscript.summary}
-												</Text>
-											</Box>
-										</Flex>
-									</Box>
-								)}
-
-								<Box style={{ height: selectedLogForTranscript?.summary ? '400px' : '520px', overflowY: 'auto', padding: '0 20px 20px' }}>
-									{selectedLogForTranscript?.transcripts && selectedLogForTranscript.transcripts.length > 0 ? (
-										<AgentChatTranscript messages={transformTranscripts(selectedLogForTranscript.transcripts)} agentState="idle" />
-									) : (
-										<Flex direction="column" align="center" justify="center" style={{ height: '100%', opacity: 0.5, padding: '40px 0' }}>
-											<MessageSquareOff size={48} color="#111827" style={{ marginBottom: '16px' }} />
-											<Text size="2" weight="bold" style={{ color: '#111827' }}>No Transcripts Available</Text>
-											<Text size="1" style={{ color: '#111827' }}>This session data is missing conversation detail.</Text>
-										</Flex>
-									)}
+							<Tabs.Root defaultValue="transcription" style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc', minHeight: 0, overflow: 'hidden' }}>
+								<Box px="4" pt="3" style={{ backgroundColor: '#ffffff', borderBottom: '1px solid #e2e8f0' }}>
+									<Tabs.List size="2" color="amber">
+										<Tabs.Trigger value="transcription" style={{ paddingBottom: '10px' }}>Transcription</Tabs.Trigger>
+										<Tabs.Trigger value="details" style={{ paddingBottom: '10px' }}>Details</Tabs.Trigger>
+									</Tabs.List>
 								</Box>
-							</Box>
 
-							<Box p="3" style={{ borderTop: '1px solid #e5e7eb', backgroundColor: '#fafafa' }}>
-								<Flex justify="end">
-									<Dialog.Close>
-										<Button variant="solid" size="2" style={{ backgroundColor: '#f0ad44', color: '#211d1e' }}>Close Overview</Button>
-									</Dialog.Close>
-								</Flex>
-							</Box>
-						</Dialog.Content>
-					</Dialog.Root>
+								<Tabs.Content value="transcription" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+									{selectedLogForTranscript?.summary && (
+										<Box p="4" m="4" style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+											<Flex direction="column" gap="2">
+												<Flex justify="between" align="center" style={{ cursor: 'pointer' }} onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}>
+													<Flex align="center" gap="2">
+														<div style={{ color: '#f0ad44', display: 'flex', alignItems: 'center' }}><Brain size={16} /></div>
+														<Text size="1" weight="bold" style={{ color: '#211d1e', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Summary</Text>
+													</Flex>
+													<div style={{ color: '#94a3b8', transform: isSummaryExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease-in-out' }}>
+														<svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3.13523 6.15803C3.3241 5.95657 3.64052 5.94637 3.84197 6.13523L7.5 9.56464L11.158 6.13523C11.3595 5.94637 11.6759 5.95657 11.8648 6.15803C12.0536 6.35949 12.0434 6.67591 11.842 6.86477L7.84197 10.6148C7.64964 10.7951 7.35036 10.7951 7.15803 10.6148L3.15803 6.86477C2.95657 6.67591 2.94637 6.35949 3.13523 6.15803Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path></svg>
+													</div>
+												</Flex>
+												{isSummaryExpanded && (
+													<Text size="2" style={{ color: '#334155', display: 'block', marginTop: '4px', lineHeight: '1.5' }}>
+														{selectedLogForTranscript.summary}
+													</Text>
+												)}
+											</Flex>
+										</Box>
+									)}
+
+									<div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden', padding: '0 16px 16px' }}>
+										{selectedLogForTranscript?.transcripts && selectedLogForTranscript.transcripts.length > 0 ? (
+											<AgentChatTranscript messages={transformTranscripts(selectedLogForTranscript.transcripts)} agentState="idle" />
+										) : (
+											<Flex direction="column" align="center" justify="center" style={{ height: '100%', opacity: 0.5 }}>
+												<MessageSquareOff size={48} color="#111827" style={{ marginBottom: '16px' }} />
+												<Text size="2" weight="bold" style={{ color: '#111827' }}>No Transcripts Available</Text>
+												<Text size="1" style={{ color: '#111827' }}>This session data is missing conversation detail.</Text>
+											</Flex>
+										)}
+									</div>
+								</Tabs.Content>
+
+								<Tabs.Content value="details" style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
+									<Text size="2" style={{ color: '#64748b' }}>Technical details and performance metrics will appear here.</Text>
+								</Tabs.Content>
+							</Tabs.Root>
+						</div>
+					</>
 				</Box>
 			</Box>
 		</Toast.Provider>

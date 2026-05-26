@@ -37,7 +37,7 @@ export type MessageProps = HTMLAttributes<HTMLDivElement> & {
 export const Message = ({ className, from, ...props }: MessageProps) => (
   <div
     className={cn(
-      "group flex w-full max-w-[95%] flex-col gap-2",
+      "group flex w-full max-w-[80%] flex-col gap-1",
       from === "user" ? "is-user ml-auto justify-end" : "is-assistant",
       className
     )}
@@ -54,9 +54,9 @@ export const MessageContent = ({
 }: MessageContentProps) => (
   <div
     className={cn(
-      "is-user:dark flex w-fit min-w-0 max-w-full flex-col gap-2 overflow-hidden text-sm",
-      "group-[.is-user]:ml-auto group-[.is-user]:rounded-lg group-[.is-user]:bg-secondary group-[.is-user]:px-4 group-[.is-user]:py-3 group-[.is-user]:text-foreground",
-      "group-[.is-assistant]:text-foreground",
+      "flex w-fit min-w-0 max-w-full flex-col gap-1.5 overflow-hidden text-[13px] leading-snug [&_*]:text-inherit",
+      "group-[.is-user]:ml-auto group-[.is-user]:rounded-2xl group-[.is-user]:rounded-tr-sm group-[.is-user]:bg-[#f0ad44] group-[.is-user]:text-[#211d1e] group-[.is-user]:px-3.5 group-[.is-user]:py-2 shadow-sm font-medium",
+      "group-[.is-assistant]:rounded-2xl group-[.is-assistant]:rounded-tl-sm group-[.is-assistant]:bg-[#211d1e] group-[.is-assistant]:text-white dark:group-[.is-assistant]:bg-[#2a2728] group-[.is-assistant]:px-3.5 group-[.is-assistant]:py-2 shadow-sm",
       className
     )}
     {...props}
@@ -86,12 +86,12 @@ export const MessageAction = ({
   tooltip,
   children,
   label,
-  variant = "ghost",
+  variant = "default",
   size = "icon-sm",
   ...props
 }: MessageActionProps) => {
   const button = (
-    <Button size={size} type="button" variant={variant} {...props}>
+    <Button size={size} type="button" variant={variant ?? "default"} className={cn("bg-[#211d1e] text-[#f0ad44] hover:bg-[#f0ad44] hover:text-[#211d1e] border border-[#f0ad44]/20 shadow-sm transition-all duration-200", props.className)} {...props}>
       {children}
       <span className="sr-only">{label || tooltip}</span>
     </Button>
@@ -186,8 +186,11 @@ export const MessageBranch = ({
 
   return (
     <MessageBranchContext.Provider value={contextValue}>
-      <div
-        className={cn("grid w-full gap-2 [&>div]:pb-0", className)}
+      <StickToBottom
+        className={cn("relative flex-1 overflow-y-auto bg-background dark:bg-background max-h-[60vh]", className)}
+        initial="smooth"
+        resize="smooth"
+        role="log"
         {...props}
       />
     </MessageBranchContext.Provider>

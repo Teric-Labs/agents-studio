@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   # PhosAI Agents Studio
@@ -29,6 +28,21 @@ services:
       - ./vite.config.ts:/app/vite.config.ts
       - ./Dockerfile:/app/Dockerfile
       - ./docker-compose.yml:/app/docker-compose.yml
+
+  phosai-ngrok-ui:
+    image: ngrok/ngrok:latest
+    container_name: phosai-ngrok-ui
+    restart: unless-stopped
+    environment:
+      - NGROK_AUTHTOKEN=3EFjPQIZTFRAN8kxMzQ3Wz40PF4_TGfUN2BbY51ScxMBS5v7
+    command:
+      - "http"
+      - "phosai-agents-studio:5173"
+      - "--url=hamstring-encounter-detector.ngrok-free.dev"
+    networks:
+      - phosai-agents-studio-network
+    depends_on:
+      - phosai-agents-studio
 
 networks:
   phosai-agents-studio-network:

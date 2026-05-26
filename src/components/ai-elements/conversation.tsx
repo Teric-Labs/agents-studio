@@ -12,7 +12,7 @@ export type ConversationProps = ComponentProps<typeof StickToBottom>;
 
 export const Conversation = ({ className, ...props }: ConversationProps) => (
   <StickToBottom
-    className={cn("relative flex-1 overflow-y-hidden", className)}
+    className={cn("relative flex-1 overflow-y-auto bg-background dark:bg-background min-h-0", className)}
     initial="smooth"
     resize="smooth"
     role="log"
@@ -29,7 +29,7 @@ export const ConversationContent = ({
   ...props
 }: ConversationContentProps) => (
   <StickToBottom.Content
-    className={cn("flex flex-col gap-8 p-4", className)}
+    className={cn("flex flex-col gap-4 p-4 pb-20", className)}
     {...props}
   />
 );
@@ -85,13 +85,13 @@ export const ConversationScrollButton = ({
     !isAtBottom && (
       <Button
         className={cn(
-          "absolute bottom-4 left-[50%] translate-x-[-50%] rounded-full dark:bg-background dark:hover:bg-muted",
+          "absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-[#211d1e] text-[#f0ad44] hover:bg-[#f0ad44] hover:text-[#211d1e] border border-[#f0ad44]/20 shadow-lg transition-all duration-200",
           className
         )}
         onClick={handleScrollToBottom}
         size="icon"
         type="button"
-        variant="outline"
+        variant="default"
         {...props}
       >
         <ArrowDownIcon className="size-4" />
@@ -153,13 +153,13 @@ export const ConversationDownload = ({
   return (
     <Button
       className={cn(
-        "absolute top-4 right-4 rounded-full dark:bg-background dark:hover:bg-muted",
+        "absolute top-4 right-4 rounded-full bg-[#211d1e] text-[#f0ad44] hover:bg-[#f0ad44] hover:text-[#211d1e] border border-[#f0ad44]/20 shadow-lg transition-all duration-200",
         className
       )}
       onClick={handleDownload}
       size="icon"
       type="button"
-      variant="outline"
+      variant="default"
       {...props}
     >
       {children ?? <DownloadIcon className="size-4" />}
