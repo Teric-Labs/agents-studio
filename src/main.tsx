@@ -7,6 +7,9 @@ import LandingPage from './pages/LandingPage'
 import { Theme } from "@radix-ui/themes";
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { TooltipProvider } from "@/components/ui/tooltip"
+import axios from 'axios';
+
+axios.defaults.headers.common['ngrok-skip-browser-warning'] = 'true';
 
 function App() {
   const { user, loading } = useAuth();
