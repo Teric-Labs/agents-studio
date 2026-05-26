@@ -8,7 +8,7 @@ import GoogleCalendarIcon from '../assets/googlecalendar.svg';
 import GoogleSheetsIcon from '../assets/googlesheets.svg';
 import phosaiLogo from '../assets/phosai_logo.png';
 
-import { Flex, Text, Button, Box, Grid, Card, Badge, Tabs, TextField, TextArea, Switch, Select, Slider, Heading, Separator, Tooltip, Table, Dialog, IconButton, SegmentedControl, AlertDialog, VisuallyHidden } from '@radix-ui/themes';
+import { Flex, Text, Button, Box, Grid, Card, Badge, Tabs, TextField, TextArea, Switch, Select, Slider, Heading, Separator, Tooltip, Table, Dialog, IconButton, SegmentedControl, AlertDialog, VisuallyHidden, Popover, ScrollArea } from '@radix-ui/themes';
 import { AgentAudioVisualizerBar } from '../components/agents-ui/agent-audio-visualizer-bar';
 import { AgentAudioVisualizerGrid } from '../components/agents-ui/agent-audio-visualizer-grid';
 import { AgentAudioVisualizerRadial } from '../components/agents-ui/agent-audio-visualizer-radial';
@@ -112,11 +112,11 @@ const VoiceCard = ({ voice, playingVoiceId, previewAudioUrl, onPlayToggle, theme
 									<span style={{ fontSize: '14px' }}>{voice.flag}</span>
 								)}
 								<Text size="3" weight="bold" style={{ color: '#111827', display: 'block', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={voice.name}>{voice.name}</Text>
-								<Text size="2" style={{ color: '#6b7280' }}>{voice.gender}</Text>
+								<Text size="2" style={{ color: '#111827' }}>{voice.gender}</Text>
 							</Flex>
-							<Flex gap="2" align="center" style={{ marginTop: '2px' }}>
-								<Text size="1" style={{ color: '#9ca3af', fontFamily: 'monospace' }}>{voice.id}</Text>
-								<Copy size={10} color="#9ca3af" style={{ cursor: 'pointer' }} onClick={() => { navigator.clipboard.writeText(voice.id); showToast("ID Copied", "Voice ID has been copied to clipboard."); }} />
+							<Flex gap="2" align="center" style={{ marginTop: '2px', visibility: 'hidden', height: 0, overflow: 'hidden' }}>
+								<Text size="1" style={{ color: '#111827', fontFamily: 'monospace' }}>{voice.id}</Text>
+								<Copy size={10} color="#111827" style={{ cursor: 'pointer' }} onClick={() => { navigator.clipboard.writeText(voice.id); showToast("ID Copied", "Voice ID has been copied to clipboard."); }} />
 							</Flex>
 						</Box>
 					</Flex>
@@ -127,8 +127,8 @@ const VoiceCard = ({ voice, playingVoiceId, previewAudioUrl, onPlayToggle, theme
 				
 				<Box my="2">
 					<Flex justify="between" mb="1">
-						<Text size="1" style={{ color: isActive ? themeColor : '#9ca3af', fontWeight: 600 }}>0:00</Text>
-						<Text size="1" style={{ color: '#9ca3af', fontWeight: 600 }}>0:10</Text>
+						<Text size="1" style={{ color: isActive ? themeColor : '#111827', fontWeight: 600 }}>0:00</Text>
+						<Text size="1" style={{ color: '#111827', fontWeight: 600 }}>0:10</Text>
 					</Flex>
 					<div style={{ position: 'relative', height: '30px', display: 'flex', alignItems: 'center' }}>
 						<div style={{ position: 'absolute', width: '100%', borderTop: '1px dashed #d1d5db', top: '50%' }} />
@@ -142,7 +142,7 @@ const VoiceCard = ({ voice, playingVoiceId, previewAudioUrl, onPlayToggle, theme
 					))}
 				</Flex>
 
-				<Text size="2" style={{ color: '#4b5563', lineHeight: 1.5, marginTop: '4px', flexGrow: 1 }}>
+				<Text size="2" style={{ color: '#111827', lineHeight: 1.5, marginTop: '4px', flexGrow: 1 }}>
 					{voice.description}
 				</Text>
 			</Flex>
@@ -212,6 +212,8 @@ export default function App() {
 	const [previewAudioUrl, setPreviewAudioUrl] = useState<string | null>(null);
 	const [phosAiVoices, setPhosAiVoices] = useState<any[]>([]);
 	const [voiceSearch, setVoiceSearch] = useState('');
+	const [ttsVoiceSearch, setTtsVoiceSearch] = useState('');
+	const [ttsVoiceDropdownOpen, setTtsVoiceDropdownOpen] = useState(false);
 	const [voiceCategory, setVoiceCategory] = useState('all_voices');
 	const [voiceLanguage, setVoiceLanguage] = useState('all_langs');
 	const [voiceCountry, setVoiceCountry] = useState('all_countries');
@@ -2887,12 +2889,61 @@ export default function App() {
 																	</Select.Content>
 																</Select.Root>
 																{selectedProviders.tts && providers.tts?.[selectedProviders.tts]?.voice_options && (
-																	<Select.Root value={providerConfigs.tts.voice || providers.tts?.[selectedProviders.tts]?.voice_options?.[0]?.id || ''} onValueChange={v => updateProviderConfig('tts', 'voice', v)}>
-																		<Select.Trigger />
-																		<Select.Content>
-																			{providers.tts?.[selectedProviders.tts]?.voice_options?.map(v => <Select.Item key={v.id} value={v.id}>{v.name}</Select.Item>)}
-																		</Select.Content>
-																	</Select.Root>
+																	<Popover.Root open={ttsVoiceDropdownOpen} onOpenChange={setTtsVoiceDropdownOpen}>
+																		<Popover.Trigger>
+																			<Button variant="surface" size="2" style={{ justifyContent: 'space-between', width: '100%', color: '#111827', backgroundColor: '#fff', fontWeight: 400 }}>
+																				{(() => {
+																					const selectedId = providerConfigs.tts.voice || providers.tts?.[selectedProviders.tts]?.voice_options?.[0]?.id;
+																					if (!selectedId) return "Select Voice";
+																					const selectedV = providers.tts?.[selectedProviders.tts]?.voice_options?.find((v: any) => v.id === selectedId);
+																					const phosVoice = phosAiVoices?.find(pv => pv.id === selectedId);
+																					return (selectedProviders.tts?.toLowerCase().includes('phos') && phosVoice?.name) ? phosVoice.name : (selectedV?.name || selectedId);
+																				})()}
+																				<ChevronRight size={14} style={{ transform: ttsVoiceDropdownOpen ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s', opacity: 0.5 }} />
+																			</Button>
+																		</Popover.Trigger>
+																		<Popover.Content width="300px" style={{ padding: '0', borderRadius: '8px', overflow: 'hidden' }}>
+																			<Box p="2" style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
+																				<TextField.Root placeholder="Search voices..." value={ttsVoiceSearch} onChange={e => setTtsVoiceSearch(e.target.value)}>
+																					<TextField.Slot><Search size={14} /></TextField.Slot>
+																				</TextField.Root>
+																			</Box>
+																			<ScrollArea type="auto" scrollbars="vertical" style={{ maxHeight: '300px' }}>
+																				<Flex direction="column" p="1">
+																					{providers.tts?.[selectedProviders.tts]?.voice_options?.filter((v: any) => {
+																						const phosVoice = phosAiVoices?.find(pv => pv.id === v.id);
+																						const displayName = (selectedProviders.tts?.toLowerCase().includes('phos') && phosVoice?.name) ? phosVoice.name : (v.name || v.id);
+																						return displayName.toLowerCase().includes(ttsVoiceSearch.toLowerCase());
+																					}).map((v: any) => {
+																						const phosVoice = phosAiVoices?.find(pv => pv.id === v.id);
+																						const displayName = (selectedProviders.tts?.toLowerCase().includes('phos') && phosVoice?.name) ? phosVoice.name : (v.name || v.id);
+																						const isSelected = (providerConfigs.tts.voice || providers.tts?.[selectedProviders.tts]?.voice_options?.[0]?.id) === v.id;
+																						return (
+																							<Button
+																								key={v.id}
+																								variant="ghost"
+																								style={{ justifyContent: 'flex-start', color: isSelected ? '#d97706' : '#111827', backgroundColor: isSelected ? '#fef3c7' : 'transparent', fontWeight: isSelected ? 600 : 400, borderRadius: '4px', margin: '2px 0' }}
+																								onClick={() => {
+																									updateProviderConfig('tts', 'voice', v.id);
+																									setTtsVoiceDropdownOpen(false);
+																									setTtsVoiceSearch('');
+																								}}
+																							>
+																								{displayName}
+																							</Button>
+																						);
+																					})}
+																					{providers.tts?.[selectedProviders.tts]?.voice_options?.filter((v: any) => {
+																						const phosVoice = phosAiVoices?.find(pv => pv.id === v.id);
+																						const displayName = (selectedProviders.tts?.toLowerCase().includes('phos') && phosVoice?.name) ? phosVoice.name : (v.name || v.id);
+																						return displayName.toLowerCase().includes(ttsVoiceSearch.toLowerCase());
+																					}).length === 0 && (
+																						<Text size="2" style={{ textAlign: 'center', padding: '16px', color: '#64748b' }}>No voices found</Text>
+																					)}
+																				</Flex>
+																			</ScrollArea>
+																		</Popover.Content>
+																	</Popover.Root>
 																)}
 															</Flex>
 														</Grid>
