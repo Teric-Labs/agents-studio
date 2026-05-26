@@ -137,7 +137,7 @@ const VoiceCard = ({ voice, playingVoiceId, previewAudioUrl, onPlayToggle, theme
 				</Box>
 
 				<Flex gap="2" wrap="wrap" mt="1">
-					{(voice.tags || []).map((tag: string) => (
+					{(voice.tags || []).filter((tag: string) => tag.toLowerCase() !== (voice.gender || '').toLowerCase()).map((tag: string) => (
 						<Badge key={tag} color="gray" variant="surface" size="1" style={{ backgroundColor: '#f3f4f6', color: '#374151', borderRadius: '4px', fontWeight: 500 }}>{tag}</Badge>
 					))}
 				</Flex>
