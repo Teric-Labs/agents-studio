@@ -1,40 +1,37 @@
-services:
-  phosai-agents-studio:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: phosai-agents-studio
-    ports:
-      - "5173:5173"
-    restart: unless-stopped
-    env_file:
-      - .env
-    environment:
-      NODE_ENV: development
-      # Public API (agents backend)
-      VITE_API_BASE: https://backend.atekervoices.com
-      # Hostnames allowed by Vite dev server (comma-separated)
-      VITE_ALLOWED_HOSTS: agents.atekervoices.com,.atekervoices.com,localhost
-    networks:
-      - phosai-agents-studio-network
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:5173/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    volumes:
-      - ./src:/app/src
-      - ./public:/app/public
-      - ./package.json:/app/package.json
-      - ./tsconfig.json:/app/tsconfig.json
-      - ./tsconfig.node.json:/app/tsconfig.node.json
-      - ./vite.config.ts:/app/vite.config.ts
-      - ./Dockerfile:/app/Dockerfile
-      - ./docker-compose.yml:/app/docker-compose.yml
-      - ./.env:/app/.env
-      - ./index.html:/app/index.html
-
-networks:
-  phosai-agents-studio-network:
-    driver: bridge
+services:
+  phosai-agents-studio:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: phosai-agents-studio
+    ports:
+      - "5173:5173"
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: development
+      VITE_API_BASE: https://backend.atekervoices.com
+    networks:
+      - phosai-agents-studio-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:5173/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    volumes:
+      - ./src:/app/src
+      - ./public:/app/public
+      - ./package.json:/app/package.json
+      - ./tsconfig.json:/app/tsconfig.json
+      - ./tsconfig.node.json:/app/tsconfig.node.json
+      - ./vite.config.ts:/app/vite.config.ts
+      - ./Dockerfile:/app/Dockerfile
+      - ./docker-compose.yml:/app/docker-compose.yml
+      - ./.env:/app/.env
+      - ./index.html:/app/index.html
+
+networks:
+  phosai-agents-studio-network:
+    driver: bridge
