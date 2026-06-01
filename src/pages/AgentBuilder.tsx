@@ -147,6 +147,79 @@ const VoiceCard = ({ voice, playingVoiceId, previewAudioUrl, onPlayToggle, theme
 					{voice.description}
 				</Text>
 			</Flex>
+
+			{/* Recordings panel */}
+			<Box style={{ marginTop: 12, marginBottom: 12 }}>
+				<Flex align="center" justify="between">
+					<Text size="2" weight="bold">Recordings</Text>
+					<Flex gap="2">
+						<Button variant="outline" size="1" onClick={loadRecordings} loading={isLoadingRecordings}>Refresh Recordings</Button>
+					</Flex>
+				</Flex>
+				{previewAudioUrl && (
+					<Box style={{ marginTop: 8 }}>
+						<audio ref={el => { audioElementRef.current = el; if (el && previewAudioUrl) el.src = previewAudioUrl; }} controls style={{ width: '100%' }} />
+					</Box>
+				)}
+				{recordings.length === 0 ? (
+					<Text size="1" style={{ color: '#6b7280', marginTop: 8 }}>No recordings found for this agent.</Text>
+				) : (
+					<Box style={{ marginTop: 8 }}>
+						{recordings.map(r => {
+							const sizeLabel = r.file_size_bytes ? (r.file_size_bytes > 1024 * 1024 ? `${(r.file_size_bytes / (1024 * 1024)).toFixed(2)} MB` : `${(r.file_size_bytes / 1024).toFixed(1)} KB`) : '';
+							const durLabel = r.duration_seconds ? `${Math.round(r.duration_seconds)}s` : '';
+							return (
+								<Flex key={r.id || r.recording_id} align="center" justify="between" style={{ padding: '8px 12px', borderBottom: '1px solid #f1f5f9' }}>
+									<Flex direction="column" style={{ minWidth: 0 }}>
+										<Text style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{r.file_path || r.storage_path || r.recording_id}</Text>
+										<Text size="1" style={{ color: '#6b7280' }}>{r.created_at ? new Date(r.created_at).toLocaleString() : ''} {sizeLabel ? `• ${sizeLabel}` : ''} {durLabel ? `• ${durLabel}` : ''}</Text>
+									</Flex>
+									<Flex gap="2">
+										{(r.status === 'completed' || r.status === 'processed') ? (
+											<>
+												<Button size="1" variant="solid" onClick={async (e) => {
+													e.stopPropagation();
+													try {
+														let url = r.download_url;
+														if (!url) {
+															const res = await axios.get(`${API_BASE}/agents/${currentAgent?.id}/recordings/${r.id || r.recording_id}/download-url`);
+															url = res.data.download_url;
+														}
+														if (url) {
+															// play
+															setPreviewAudioUrl(url);
+															if (audioElementRef.current) {
+																audioElementRef.current.src = url;
+																audioElementRef.current.play().catch(() => {});
+															}
+														}
+												} catch (err) { console.error('Failed to get download url', err); }
+											}}>Play</Button>
+												<Button size="1" variant="outline" onClick={async (e) => {
+													e.stopPropagation();
+													try {
+														let url = r.download_url;
+														if (!url) {
+															const res = await axios.get(`${API_BASE}/agents/${currentAgent?.id}/recordings/${r.id || r.recording_id}/download-url`);
+															url = res.data.download_url;
+														}
+														if (url) {
+															navigator.clipboard?.writeText(url).then(() => showToast('Copied', 'Download link copied to clipboard')).catch(() => {});
+														}
+												} catch (err) { console.error('Failed to get download url', err); }
+											}}>Copy Link</Button>
+												<Button size="1" variant="soft" onClick={() => { setPreviewAudioUrl(null); if (audioElementRef.current) { audioElementRef.current.pause(); audioElementRef.current.currentTime = 0; audioElementRef.current.src = ''; } }}>Stop</Button>
+											</>
+										) : (
+											<Button size="1" variant="soft" disabled>Not ready</Button>
+										)}
+									</Flex>
+								</Flex>
+							);
+							})}
+					</Box>
+				)}
+			</Box>
 		</Card>
 	);
 };
@@ -233,7 +306,15 @@ export default function App() {
 	const [logStatusFilter, setLogStatusFilter] = useState('all');
 	const [logTypeFilter, setLogTypeFilter] = useState('all');
 	const [logPage, setLogPage] = useState(1);
+	const [recordings, setRecordings] = useState<any[]>([]);
+	const [isRecording, setIsRecording] = useState(false);
+	const [recordingEgressId, setRecordingEgressId] = useState<string | null>(null);
+	const [isLoadingRecordings, setIsLoadingRecordings] = useState(false);
 	const [selectedLogForTranscript, setSelectedLogForTranscript] = useState<any>(null);
+
+	const getAgentRouteKey = (agent: any): string | undefined => {
+		return agent?.id || agent?.config?.name || agent?.name;
+	};
 	const [isTranscriptModalOpen, setIsTranscriptModalOpen] = useState(false);
 	const [isSummaryExpanded, setIsSummaryExpanded] = useState(true);
 	const [isVoiceUIOpen, setIsVoiceUIOpen] = useState(false);
@@ -471,6 +552,25 @@ export default function App() {
 			setIsLoadingLogs(false);
 		}
 	};
+
+	const loadRecordings = async () => {
+		if (!currentAgent?.id) return;
+		setIsLoadingRecordings(true);
+		try {
+			const res = await axios.get(`${API_BASE}/agents/${currentAgent.id}/recordings`);
+			setRecordings(res.data.recordings || []);
+		} catch (e) {
+			console.error('Failed to load recordings', e);
+		} finally {
+			setIsLoadingRecordings(false);
+		}
+	};
+
+	useEffect(() => {
+		if (activeView === 'logs') {
+			loadRecordings();
+		}
+	}, [activeView, currentAgent]);
 
 	const filteredLogs = logs.filter(l => {
 		const matchesSearch = !logSearch ||
@@ -1001,6 +1101,43 @@ export default function App() {
 
 	const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
 
+	const startRecording = async (targetAgent: any, roomName?: string) => {
+		const agentKey = getAgentRouteKey(targetAgent);
+		if (!agentKey) return;
+		try {
+			const res = await axios.post(`${API_BASE}/agents/${encodeURIComponent(agentKey)}/recordings/start`, {
+				room_name: roomName
+			});
+			const egressId = res.data?.egress_id;
+			if (egressId) {
+				setRecordingEgressId(egressId);
+				setIsRecording(true);
+			}
+			loadRecordings();
+			showToast('Recording started', 'Session recording is now capturing.');
+		} catch (error) {
+			console.error('Failed to start recording', error);
+			showToast('Recording error', 'Could not start the recording.');
+		}
+	};
+
+	const stopRecording = async (targetAgent?: any) => {
+		const agentKey = getAgentRouteKey(targetAgent || currentAgent);
+		if (!recordingEgressId || !agentKey) return;
+		try {
+			await axios.post(`${API_BASE}/agents/${encodeURIComponent(agentKey)}/recordings/stop`, {
+				egress_id: recordingEgressId
+			});
+			setIsRecording(false);
+			setRecordingEgressId(null);
+			loadRecordings();
+			showToast('Recording stopped', 'The voice session recording has been stopped.');
+		} catch (error) {
+			console.error('Failed to stop recording', error);
+			showToast('Recording error', 'Could not stop the recording.');
+		}
+	};
+
 	const toggleCall = async (targetAgentOverride?: any) => {
 		const targetAgent = targetAgentOverride || currentAgent;
 		if (!targetAgent) return;
@@ -1013,8 +1150,9 @@ export default function App() {
 			}
 			try {
 				// ALWAYS stop the agent that was actually active (currentAgent)
-				if (currentAgent?.name) {
-					await axios.post(`${API_BASE}/agents/${currentAgent.name}/stop`);
+				const currentAgentKey = getAgentRouteKey(currentAgent);
+				if (currentAgentKey) {
+					await axios.post(`${API_BASE}/agents/${encodeURIComponent(currentAgentKey)}/stop`);
 				}
 			} catch (e) {
 				console.warn('Failed to stop previous agent', e);
@@ -1041,11 +1179,13 @@ export default function App() {
 		try {
 			await createAgent(true);
 
-			const tokenResponse = await axios.get(`${API_BASE}/livekit/token?agent_name=${targetAgent.name}`);
+			const targetAgentKey = getAgentRouteKey(targetAgent);
+			if (!targetAgentKey) throw new Error('Missing agent identifier');
+			const tokenResponse = await axios.get(`${API_BASE}/livekit/token?agent_name=${encodeURIComponent(targetAgentKey)}`);
 			const { token, url } = tokenResponse.data;
 
 			try {
-				await axios.post(`${API_BASE}/agents/${targetAgent.name}/start`);
+				await axios.post(`${API_BASE}/agents/${encodeURIComponent(targetAgentKey)}/start`);
 				await new Promise(r => setTimeout(r, 2000));
 			} catch (e) {
 				console.warn('Agent start warning', e);
@@ -1075,12 +1215,16 @@ export default function App() {
 				});
 			});
 
-			room.on(LiveKitSDK.RoomEvent.Connected, () => {
+			room.on(LiveKitSDK.RoomEvent.Connected, async () => {
 				setIsCallActive(true);
 				setIsConnecting(false);
 				setAgentState('listening');
+				await startRecording(targetAgent, room.name);
 			});
 			room.on(LiveKitSDK.RoomEvent.Disconnected, async () => {
+				if (recordingEgressId) {
+					await stopRecording(targetAgent);
+				}
 				setIsCallActive(false);
 				setAgentAudioTrack(null);
 				setAgentState('disconnected');
@@ -1160,26 +1304,28 @@ export default function App() {
 				await room.localParticipant.setMicrophoneEnabled(true);
 			}
 
-			roomRef.current = room;
+				roomRef.current = room;
 
-		} catch (error: any) {
-			console.error('Call failed:', error);
-			setIsCallActive(false);
-			setAgentState('error');
-			showToast("Connectivity Error", "Could not reach the voice agent.");
-		} finally {
-			setIsConnecting(false);
-		}
-	};
+			} catch (error: any) {
+				console.error('Call failed:', error);
+				setIsCallActive(false);
+				setAgentState('error');
+				showToast("Connectivity Error", "Could not reach the voice agent.");
+			} finally {
+				setIsConnecting(false);
+			}
+
 
 	const toggleChatSession = async (targetAgentOverride?: any) => {
 		const targetAgent = targetAgentOverride || currentAgent;
 		if (!targetAgent) return;
+		const targetAgentKey = getAgentRouteKey(targetAgent);
+		if (!targetAgentKey) return;
 
 		if (isChatActive) {
 			chatRoomRef.current?.disconnect();
 			try {
-				await axios.post(`${API_BASE}/agents/${targetAgent.name}/stop`);
+				await axios.post(`${API_BASE}/agents/${encodeURIComponent(targetAgentKey)}/stop`);
 			} catch (e) { console.warn(e); }
 			setIsChatActive(false);
 			setAgentState('disconnected');
@@ -1195,11 +1341,11 @@ export default function App() {
 
 		try {
 			await createAgent(true);
-			const tokenResponse = await axios.get(`${API_BASE}/livekit/token?agent_name=${targetAgent.name}`);
+			const tokenResponse = await axios.get(`${API_BASE}/livekit/token?agent_name=${encodeURIComponent(targetAgentKey)}`);
 			const { token, url } = tokenResponse.data;
 
 			try {
-				await axios.post(`${API_BASE}/agents/${targetAgent.name}/start`);
+				await axios.post(`${API_BASE}/agents/${encodeURIComponent(targetAgentKey)}/start`);
 				await new Promise(r => setTimeout(r, 1500));
 			} catch (e) { console.warn(e); }
 
@@ -1922,6 +2068,10 @@ export default function App() {
 								</Flex>
 
 								{/* Table */}
+								<Box style={{ marginBottom: 16, padding: '16px', borderRadius: '12px', border: '1px solid #e5e7eb', backgroundColor: '#ffffff' }}>
+									<Text size="2" weight="bold">Recordings</Text>
+									<Text size="1" style={{ color: '#6b7280', marginTop: 8 }}>Recordings will appear here when an active agent is selected.</Text>
+								</Box>
 								<Box style={{ overflowX: 'auto' }}>
 									<Table.Root variant="ghost" size="1">
 										<Table.Header>
@@ -2502,9 +2652,9 @@ export default function App() {
 											{isConnecting ? <RefreshCw size={16} className="animate-spin" /> : isCallActive ? <PhoneOff size={16} /> : <Phone size={16} />}
 											{isConnecting ? 'Connecting...' : isCallActive ? 'End Call' : (currentAgent?.config?.chat_only ? 'Voice Unavailable' : 'Voice Call')}
 										</button>
-										<button
-											onClick={() => toggleChatSession()}
-											disabled={isChatConnecting || isConnecting || isCallActive}
+															<button
+																onClick={() => toggleChatSession()}
+																disabled={isChatConnecting || isConnecting || isCallActive}
 											style={{
 												flex: 1,
 												display: 'flex',
@@ -3467,4 +3617,6 @@ export default function App() {
 			</Box>
 		</Toast.Provider>
 	);
+}
+
 }

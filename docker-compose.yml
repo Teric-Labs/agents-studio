@@ -28,6 +28,8 @@ services:
       - ./vite.config.ts:/app/vite.config.ts
       - ./Dockerfile:/app/Dockerfile
       - ./docker-compose.yml:/app/docker-compose.yml
+      - ./.env:/app/.env
+      - ./index.html:/app/index.html
 
   phosai-ngrok-ui:
     image: ngrok/ngrok:latest
