@@ -20,9 +20,11 @@ import { KnowledgeBaseManager } from '../components/KnowledgeBaseManager';
 import { AgentChatTranscript } from '../components/agents-ui/agent-chat-transcript';
 import * as Toast from '@radix-ui/react-toast';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_BASE || 'https://backend.atekervoices.com';
 const IS_DEV = import.meta.env.DEV;
-const PHOSAI_TTS_URL = IS_DEV ? '/phosai-api' : (import.meta.env.VITE_PHOSAI_TTS_URL || 'https://laurine-unappropriable-unvolcanically.ngrok-free.app');
+const PHOSAI_TTS_URL = IS_DEV && import.meta.env.VITE_PHOSAI_TTS_URL
+	? '/phosai-api'
+	: (import.meta.env.VITE_PHOSAI_TTS_URL || '');
 
 // Add axios interceptor to include Firebase token
 axios.interceptors.request.use(async (config) => {
@@ -673,7 +675,7 @@ export default function App() {
 
 			const response = await fetch(`${PHOSAI_TTS_URL}/v1/audio/speech/stream`, {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					text: previewText,
 					voice: voiceId,
@@ -714,7 +716,6 @@ export default function App() {
 
 			const response = await fetch(`${PHOSAI_TTS_URL}/v1/audio/speech/clone/upload`, {
 				method: 'POST',
-				headers: { 'ngrok-skip-browser-warning': 'true' },
 				body: formData
 			});
 
@@ -761,9 +762,7 @@ export default function App() {
 		if (activeView === 'voices' && phosAiVoices.length === 0) {
 			const fetchVoices = async () => {
 				try {
-					const res = await fetch(`${API_BASE}/v1/voices`, {
-						headers: { 'ngrok-skip-browser-warning': 'true' }
-					});
+					const res = await fetch(`${API_BASE}/v1/voices`);
 					if (res.ok) {
 						const data = await res.json();
 						if (data.speaker_ids) {
