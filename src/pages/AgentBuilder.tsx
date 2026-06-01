@@ -9,7 +9,8 @@ import GoogleSheetsIcon from '../assets/googlesheets.svg';
 import phosaiLogo from '../assets/phosai_logo.png';
 
 import { Flex, Text, Button, Box, Grid, Card, Badge, Tabs, TextField, TextArea, Switch, Select, Slider, Heading, Separator, Tooltip, Table, Dialog, IconButton, SegmentedControl, AlertDialog, VisuallyHidden, Popover, ScrollArea } from '@radix-ui/themes';
-import { AgentAudioVisualizerBar } from '../components/agents-ui/agent-audio-visualizer-bar';
+import { AgentAudioVisualizerBar } from '../AgentAudioVisualizerBar';
+import type { VisualizerState } from '../AgentAudioVisualizerBar';
 import { AgentAudioVisualizerGrid } from '../components/agents-ui/agent-audio-visualizer-grid';
 import { AgentAudioVisualizerRadial } from '../components/agents-ui/agent-audio-visualizer-radial';
 import { AgentAudioVisualizerWave } from '../components/agents-ui/agent-audio-visualizer-wave';
@@ -193,6 +194,7 @@ export default function App() {
 
 	// UI State
 	const [activeView, setActiveView] = useState<'dashboard' | 'builder' | 'voices' | 'knowledge' | 'workflows' | 'logs' | 'agent-detail'>('dashboard');
+	const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 	const [editingWorkflowId, setEditingWorkflowId] = useState<string | null>(null);
 	const [showMobileMenu, setShowMobileMenu] = useState(false);
 	const [isCallActive, setIsCallActive] = useState(false);
@@ -1328,82 +1330,159 @@ export default function App() {
 					0%, 100% { transform: scale(1); opacity: 0.9; }
 					50% { transform: scale(1.1); opacity: 1; }
 				}
+				.sidebar-item {
+					color: #9ca3af !important;
+					background-color: transparent !important;
+					transition: all 0.2s ease-in-out;
+				}
+				.sidebar-item:hover {
+					color: #ffffff !important;
+					background-color: rgba(255, 255, 255, 0.05) !important;
+				}
+				.sidebar-item.active {
+					color: #161617 !important;
+					background-color: #f0ad44 !important;
+				}
+				.hoverable-row {
+					transition: background-color 0.2s;
+				}
+				.hoverable-row:hover {
+					background-color: rgba(240, 173, 68, 0.06) !important;
+				}
+				.hoverable-row.active-row {
+					background-color: rgba(240, 173, 68, 0.08) !important;
+				}
+				table td, table th {
+					white-space: nowrap !important;
+				}
 			`}</style>
 				{/* Sidebar - Desktop */}
-				<Box display={{ initial: 'none', lg: 'block' }} style={{ flexShrink: 0 }}>
+				<Box display={{ initial: 'none', lg: 'block' }} style={{ flexShrink: 0, transition: 'width 0.2s ease-in-out', width: isSidebarCollapsed ? '60px' : '190px' }}>
 					<Flex direction="column" style={{
-						width: '240px',
-						backgroundColor: '#ffffff',
-						borderRight: '1px solid #e5e7eb',
-						padding: '24px 0',
-						height: '100vh'
+						width: '100%',
+						backgroundColor: '#161617',
+						borderRight: '1px solid #2e303a',
+						padding: '16px 0',
+						height: '100vh',
+						transition: 'all 0.2s ease-in-out'
 					}}>
-						<Box style={{ padding: '0 20px 24px', borderBottom: '1px solid #e5e7eb' }}>
-							<Flex align="center" gap="3">
-								<img src={phosaiLogo} alt="" width={40} height={40} style={{ objectFit: 'contain', flexShrink: 0 }} />
-								<Text style={{ fontWeight: 800, fontSize: 13, letterSpacing: '0.08em', color: '#111827' }}>PHOSAI STUDIO</Text>
+						<Box style={{ padding: isSidebarCollapsed ? '0 8px 16px' : '0 12px 16px', borderBottom: '1px solid #2e303a', transition: 'padding 0.2s ease-in-out' }}>
+							<Flex align="center" gap="2" justify={isSidebarCollapsed ? 'center' : 'start'}>
+								<img src={phosaiLogo} alt="" width={32} height={32} style={{ objectFit: 'contain', flexShrink: 0 }} />
+								{!isSidebarCollapsed && (
+									<Text style={{ fontWeight: 800, fontSize: 14, color: '#ffffff', whiteSpace: 'nowrap' }}>PhosAI Studio</Text>
+								)}
 							</Flex>
 						</Box>
 
-						<Box style={{ flexGrow: 1, padding: '16px 12px', overflowY: 'auto' }}>
+						<Box style={{ flexGrow: 1, padding: isSidebarCollapsed ? '12px 6px' : '12px 8px', overflowY: 'auto', transition: 'padding 0.2s ease-in-out' }}>
 							{[
 								{ id: 'dashboard', label: 'Analytics', icon: <BarChart size={18} /> },
 								{ id: 'builder', label: 'Agents', icon: <Brain size={18} /> },
 								{ id: 'voices', label: 'Voice Library', icon: <Mic size={18} /> },
 								{ id: 'workflows', label: 'Workflows', icon: <Workflow size={18} /> },
 								{ id: 'knowledge', label: 'Knowledge Base', icon: <Book size={18} /> },
-								{ id: 'logs', label: 'Conversation History', icon: <History size={18} /> }
-							].map(item => (
-								<Box
-									key={item.id}
-									onClick={() => setActiveView(item.id as any)}
-									style={{
-										display: 'flex', alignItems: 'center', gap: '12px',
-										padding: '10px 12px', borderRadius: 'var(--radius-1)', marginBottom: '4px',
-										backgroundColor: activeView === item.id ? '#fffbeb' : 'transparent',
-										color: activeView === item.id ? '#92400e' : '#111827',
-										fontWeight: activeView === item.id ? 600 : 400,
-										fontSize: '14px', cursor: 'pointer',
-										transition: 'all 0.2s'
-									}}
-								>
-									{item.icon}
-									{item.label}
-								</Box>
-							))}
+								{ id: 'logs', label: 'Conversations', icon: <History size={18} /> }
+							].map(item => {
+								const isActive = activeView === item.id;
+								const sidebarItemContent = (
+									<Box
+										onClick={() => setActiveView(item.id as any)}
+										className={`sidebar-item ${isActive ? 'active' : ''}`}
+										style={{
+											display: 'flex', alignItems: 'center', justifyContent: isSidebarCollapsed ? 'center' : 'start', gap: isSidebarCollapsed ? '0' : '12px',
+											padding: '8px 10px', borderRadius: 'var(--radius-1)', marginBottom: '4px',
+											fontWeight: isActive ? 600 : 400,
+											fontSize: '14px', cursor: 'pointer',
+										}}
+									>
+										{item.icon}
+										{!isSidebarCollapsed && <span style={{ whiteSpace: 'nowrap' }}>{item.label}</span>}
+									</Box>
+								);
 
+								return isSidebarCollapsed ? (
+									<Tooltip content={item.label} key={item.id} side="right">
+										{sidebarItemContent}
+									</Tooltip>
+								) : (
+									<Box key={item.id}>
+										{sidebarItemContent}
+									</Box>
+								);
+							})}
 						</Box>
 
-						<Box style={{ padding: '12px 16px 20px', borderTop: '1px solid #e5e7eb', marginTop: 'auto', backgroundColor: '#fafafa' }}>
+						{/* Collapse Toggle */}
+						<Box style={{ padding: '8px 12px', borderTop: '1px solid #2e303a', display: 'flex', justifyContent: isSidebarCollapsed ? 'center' : 'end' }}>
+							<IconButton
+								variant="ghost"
+								onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+								style={{ color: '#9ca3af', cursor: 'pointer' }}
+							>
+								{isSidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+							</IconButton>
+						</Box>
+
+						<Box style={{ padding: isSidebarCollapsed ? '12px 8px' : '12px 16px 20px', borderTop: '1px solid #2e303a', marginTop: 'auto', backgroundColor: '#161617', transition: 'padding 0.2s ease-in-out' }}>
 							{user ? (
-								<Flex direction="column" gap="3">
-									<Flex align="center" gap="3">
-										{profilePhotoUrl ? (
-											<img src={profilePhotoUrl} alt="" width={40} height={40} style={{ borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid #fcd34d' }} />
-										) : (
-											<Box style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#f0ad44', color: '#211d1e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700, flexShrink: 0, letterSpacing: '0.02em' }}>
-												{profileInitials}
+								isSidebarCollapsed ? (
+									<Flex direction="column" align="center" gap="3">
+										<Tooltip content={profileDisplayName} side="right">
+											{profilePhotoUrl ? (
+												<img src={profilePhotoUrl} alt="" width={40} height={40} style={{ borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid #fcd34d' }} />
+											) : (
+												<Box style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#f0ad44', color: '#211d1e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700, flexShrink: 0, letterSpacing: '0.02em' }}>
+													{profileInitials}
+												</Box>
+											)}
+										</Tooltip>
+										<Tooltip content="Sign out" side="right">
+											<IconButton variant="solid" style={{ backgroundColor: '#f0ad44', color: '#161617', cursor: 'pointer' }} size="2" onClick={() => { void signOut(); }}>
+												<LogOut size={16} />
+											</IconButton>
+										</Tooltip>
+									</Flex>
+								) : (
+									<Flex direction="column" gap="3">
+										<Flex align="center" gap="3">
+											{profilePhotoUrl ? (
+												<img src={profilePhotoUrl} alt="" width={40} height={40} style={{ borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid #fcd34d' }} />
+											) : (
+												<Box style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#f0ad44', color: '#211d1e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700, flexShrink: 0, letterSpacing: '0.02em' }}>
+													{profileInitials}
+												</Box>
+											)}
+											<Box style={{ minWidth: 0, flex: 1 }}>
+												<Text size="2" weight="bold" as="div" style={{ lineHeight: 1.25, color: '#ffffff', fontSize: '14px' }}>{profileDisplayName}</Text>
+												{profileEmail ? (
+													<Text size="1" style={{ color: '#9ca3af', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '2px', fontWeight: 500, fontSize: '14px' }} title={profileEmail}>{profileEmail}</Text>
+												) : null}
 											</Box>
-										)}
-										<Box style={{ minWidth: 0, flex: 1 }}>
-											<Text size="2" weight="bold" as="div" style={{ lineHeight: 1.25, color: '#111827' }}>{profileDisplayName}</Text>
-											{profileEmail ? (
-												<Text size="1" style={{ color: '#111827', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '2px', fontWeight: 500 }} title={profileEmail}>{profileEmail}</Text>
-											) : null}
-										</Box>
+										</Flex>
+										<Button variant="solid" style={{ backgroundColor: '#f0ad44', color: '#161617', width: '100%', justifyContent: 'center', fontWeight: 600, fontSize: '14px', cursor: 'pointer' }} onClick={() => { void signOut(); }}>
+											<LogOut size={16} style={{ marginRight: '6px' }} /> Sign out
+										</Button>
 									</Flex>
-										<Button variant="soft" color="amber" size="2" style={{ width: '100%', justifyContent: 'center', fontWeight: 600 }} onClick={() => { void signOut(); }}>
-										<LogOut size={16} style={{ marginRight: '6px' }} /> Sign out
-									</Button>
-								</Flex>
+								)
 							) : (
-								<Flex direction="column" gap="2">
-									<Text size="1" weight="medium" style={{ color: '#111827' }}>Sign in to sync your workspace.</Text>
-									<Flex gap="2">
-										<Button variant="ghost" size="2" style={{ flex: 1 }} onClick={() => window.location.href = '/'}>Sign in</Button>
-										<Button size="2" style={{ flex: 1, backgroundColor: '#f0ad44', color: '#211d1e' }} onClick={() => window.location.href = '/'}>Sign up</Button>
+								isSidebarCollapsed ? (
+									<Flex direction="column" align="center" gap="2">
+										<Tooltip content="Sign in" side="right">
+											<IconButton variant="ghost" size="2" style={{ color: '#ffffff', cursor: 'pointer' }} onClick={() => window.location.href = '/'}>
+												<User size={16} />
+											</IconButton>
+										</Tooltip>
 									</Flex>
-								</Flex>
+								) : (
+									<Flex direction="column" gap="2">
+										<Text size="1" weight="medium" style={{ color: '#9ca3af', fontSize: '14px' }}>Sign in to sync your workspace.</Text>
+										<Flex gap="2">
+											<Button variant="ghost" size="2" style={{ flex: 1, fontSize: '14px', color: '#ffffff' }} onClick={() => window.location.href = '/'}>Sign in</Button>
+											<Button size="2" style={{ flex: 1, backgroundColor: '#f0ad44', color: '#161617', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }} onClick={() => window.location.href = '/'}>Sign up</Button>
+										</Flex>
+									</Flex>
+								)
 							)}
 						</Box>
 					</Flex>
@@ -1412,20 +1491,20 @@ export default function App() {
 				{/* Sidebar - Mobile Overlay */}
 				{showMobileMenu && (
 					<Box style={{
-						position: 'fixed', inset: 0, zIndex: 100, backgroundColor: 'rgba(0,0,0,0.5)',
+						position: 'fixed', inset: 0, zIndex: 100, backgroundColor: 'rgba(0,0,0,0.6)',
 						display: 'flex'
 					}} onClick={() => setShowMobileMenu(false)}>
 						<Box style={{
-							width: '280px', height: '100%', backgroundColor: '#ffffff',
-							display: 'flex', flexDirection: 'column'
+							width: '280px', height: '100%', backgroundColor: '#161617',
+							display: 'flex', flexDirection: 'column', borderRight: '1px solid #2e303a'
 						}} onClick={e => e.stopPropagation()}>
-							<Box style={{ padding: '24px 20px 24px', borderBottom: '1px solid #e5e7eb' }}>
+							<Box style={{ padding: '24px 20px 24px', borderBottom: '1px solid #2e303a' }}>
 								<Flex align="center" justify="between">
 									<Flex align="center" gap="3">
 										<img src={phosaiLogo} alt="" width={36} height={36} style={{ objectFit: 'contain', flexShrink: 0 }} />
-										<Text style={{ fontWeight: 800, fontSize: 12, letterSpacing: '0.08em', color: '#111827' }}>PHOSAI STUDIO</Text>
+										<Text style={{ fontWeight: 800, fontSize: 12, color: '#ffffff' }}>PhosAI Studio</Text>
 									</Flex>
-									<Button variant="ghost" onClick={() => setShowMobileMenu(false)}><X size={20} /></Button>
+									<Button variant="ghost" onClick={() => setShowMobileMenu(false)} style={{ color: '#ffffff', cursor: 'pointer' }}><X size={20} /></Button>
 								</Flex>
 							</Box>
 
@@ -1436,17 +1515,15 @@ export default function App() {
 									{ id: 'voices', label: 'Voice Library', icon: <Mic size={18} /> },
 									{ id: 'workflows', label: 'Workflows', icon: <Workflow size={18} /> },
 									{ id: 'knowledge', label: 'Knowledge Base', icon: <Book size={18} /> },
-									{ id: 'logs', label: 'Conversation History', icon: <History size={18} /> }
+									{ id: 'logs', label: 'Conversations', icon: <History size={18} /> }
 								].map(item => (
 									<Box
 										key={item.id}
 										onClick={() => { setActiveView(item.id as any); setShowMobileMenu(false); }}
+										className={`sidebar-item ${activeView === item.id ? 'active' : ''}`}
 										style={{
 											display: 'flex', alignItems: 'center', gap: '12px',
 											padding: '12px', borderRadius: 'var(--radius-1)', marginBottom: '4px',
-											backgroundColor: activeView === item.id ? '#fffbeb' : 'transparent',
-											color: activeView === item.id ? '#92400e' : '#111827',
-											fontWeight: activeView === item.id ? 600 : 400,
 											fontSize: '14px', cursor: 'pointer'
 										}}
 									>
@@ -1455,34 +1532,34 @@ export default function App() {
 									</Box>
 								))}
 							</Box>
-							<Box style={{ padding: '12px 16px 20px', borderTop: '1px solid #e5e7eb', backgroundColor: '#fafafa' }}>
+							<Box style={{ padding: '12px 16px 20px', borderTop: '1px solid #2e303a', backgroundColor: '#161617' }}>
 								{user ? (
 									<Flex direction="column" gap="3">
 										<Flex align="center" gap="3">
 											{profilePhotoUrl ? (
 												<img src={profilePhotoUrl} alt="" width={40} height={40} style={{ borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid #fcd34d' }} />
 											) : (
-												<Box style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#f0ad44', color: '#211d1e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700, flexShrink: 0 }}>
+												<Box style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#f0ad44', color: '#161617', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700, flexShrink: 0 }}>
 													{profileInitials}
 												</Box>
 											)}
 											<Box style={{ minWidth: 0, flex: 1 }}>
-												<Text size="2" weight="bold" as="div" style={{ lineHeight: 1.25, color: '#111827' }}>{profileDisplayName}</Text>
+												<Text size="2" weight="bold" as="div" style={{ lineHeight: 1.25, color: '#ffffff' }}>{profileDisplayName}</Text>
 												{profileEmail ? (
-													<Text size="1" style={{ color: '#111827', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '2px', fontWeight: 500 }} title={profileEmail}>{profileEmail}</Text>
+													<Text size="1" style={{ color: '#9ca3af', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '2px', fontWeight: 500 }} title={profileEmail}>{profileEmail}</Text>
 												) : null}
 											</Box>
 										</Flex>
-										<Button variant="soft" color="amber" size="2" style={{ width: '100%', justifyContent: 'center', fontWeight: 600 }} onClick={() => { void signOut(); setShowMobileMenu(false); }}>
+										<Button variant="solid" size="2" style={{ width: '100%', justifyContent: 'center', fontWeight: 600, backgroundColor: '#f0ad44', color: '#161617', cursor: 'pointer' }} onClick={() => { void signOut(); setShowMobileMenu(false); }}>
 											<LogOut size={16} style={{ marginRight: '6px' }} /> Sign out
 										</Button>
 									</Flex>
 								) : (
 									<Flex direction="column" gap="2">
-										<Text size="1" weight="medium" style={{ color: '#111827' }}>Sign in to sync your workspace.</Text>
+										<Text size="1" weight="medium" style={{ color: '#9ca3af' }}>Sign in to sync your workspace.</Text>
 										<Flex gap="2">
-											<Button variant="ghost" size="2" style={{ flex: 1 }} onClick={() => window.location.href = '/'}>Sign in</Button>
-											<Button size="2" style={{ flex: 1, backgroundColor: '#f0ad44', color: '#211d1e' }} onClick={() => window.location.href = '/'}>Sign up</Button>
+											<Button variant="ghost" size="2" style={{ flex: 1, color: '#ffffff', cursor: 'pointer' }} onClick={() => window.location.href = '/'}>Sign in</Button>
+											<Button size="2" style={{ flex: 1, backgroundColor: '#f0ad44', color: '#161617', fontWeight: 600, cursor: 'pointer' }} onClick={() => window.location.href = '/'}>Sign up</Button>
 										</Flex>
 									</Flex>
 								)}
@@ -1495,15 +1572,15 @@ export default function App() {
 				<Box style={{ flexGrow: 1, height: '100vh', overflowY: 'auto', position: 'relative' }}>
 					{/* Header */}
 					<header style={{
-						padding: '18px 24px',
-						backgroundColor: '#ffffff',
-						borderBottom: '1px solid #e5e7eb',
+						padding: '12px 18px',
+						backgroundColor: '#161617',
+						borderBottom: '1px solid #2e303a',
 						display: 'flex', alignItems: 'center', justifyContent: 'space-between',
 						position: 'sticky', top: 0, zIndex: 10
 					}}>
 						<Box style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
 							<Box display={{ initial: 'block', lg: 'none' }}>
-								<Button variant="ghost" onClick={() => setShowMobileMenu(true)}><Menu size={20} /></Button>
+								<Button variant="ghost" onClick={() => setShowMobileMenu(true)} style={{ color: '#ffffff' }}><Menu size={20} /></Button>
 							</Box>
 							<Box>
 								{activeView === 'workflows' && editingWorkflowId ? (
@@ -1522,11 +1599,11 @@ export default function App() {
 									</Flex>
 								) : (
 									<>
-										<Heading size="5" style={{ margin: 0, fontWeight: 800, color: '#111827', letterSpacing: '-0.02em' }}>
-											{activeView === 'dashboard' ? 'Overview' : activeView === 'knowledge' ? 'Knowledge Management' : activeView === 'workflows' ? 'Workflow Designer' : activeView === 'logs' ? 'Conversation History' : 'Agent Builder'}
+										<Heading size="4" style={{ margin: 0, fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em' }}>
+											{activeView === 'dashboard' ? 'Overview' : activeView === 'knowledge' ? 'Knowledge Management' : activeView === 'workflows' ? 'Workflow Designer' : activeView === 'logs' ? 'Conversations' : 'Agent Builder'}
 										</Heading>
 										<Box display={{ initial: 'none', sm: 'block' }}>
-											<Text size="1" style={{ color: '#111827', marginTop: '2px', fontWeight: 500 }}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} — {user ? `Welcome back, ${profileDisplayName}.` : 'Welcome back.'}</Text>
+											<Text size="1" style={{ color: '#9ca3af', marginTop: '2px', fontWeight: 500 }}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} — {user ? `Welcome back, ${profileDisplayName}.` : 'Welcome back.'}</Text>
 										</Box>
 									</>
 								)}
@@ -1535,28 +1612,28 @@ export default function App() {
 						<Flex align="center" gap="4">
 							<Box display={{ initial: 'none', md: 'block' }}>
 								<Flex align="center" gap="2">
-									<Text size="1" style={{ color: '#111827' }}>Status</Text>
+									<Text size="1" style={{ color: '#9ca3af' }}>Status</Text>
 									<Badge color={connectionStatus === 'connected' ? 'amber' : 'gray'} variant="soft">
 										{connectionStatus === 'connected' ? 'Online' : 'Offline'}
 									</Badge>
 								</Flex>
 							</Box>
 							<Box display={{ initial: 'none', md: 'block' }}>
-								<Separator orientation="vertical" style={{ height: '24px', backgroundColor: '#e5e7eb' }} />
+								<Separator orientation="vertical" style={{ height: '24px', backgroundColor: '#2e303a' }} />
 							</Box>
 							{!user ? (
 								<Flex gap="2">
-									<Button variant="ghost" size="2" onClick={() => window.location.href = '/'}>Sign In</Button>
-									<Button size="2" style={{ backgroundColor: '#f0ad44', color: '#211d1e' }} onClick={() => window.location.href = '/'}>Sign Up</Button>
+									<Button variant="ghost" size="2" style={{ color: '#ffffff' }} onClick={() => window.location.href = '/'}>Sign In</Button>
+									<Button size="2" style={{ backgroundColor: '#f0ad44', color: '#161617', fontWeight: 600, cursor: 'pointer' }} onClick={() => window.location.href = '/'}>Sign Up</Button>
 								</Flex>
 							) : null}
 
 							{activeView === 'workflows' ? (
 								<Flex gap="3" align="center" wrap="wrap" justify={{ initial: 'start', sm: 'end' }}>
-									{editingWorkflowId && <Button variant="ghost" style={{ color: '#111827' }} onClick={() => setEditingWorkflowId(null)} size="2"><LogOut size={16} /> Exit Designer</Button>}
-									<Button variant="soft" color="amber" onClick={() => loadWorkflowsList()} size="2"><RefreshCw size={16} /> Reload</Button>
+									{editingWorkflowId && <Button variant="ghost" style={{ color: '#ffffff' }} onClick={() => setEditingWorkflowId(null)} size="2"><LogOut size={16} /> Exit Designer</Button>}
+									<Button variant="solid" style={{ backgroundColor: '#f0ad44', color: '#161617', fontWeight: 600, cursor: 'pointer' }} onClick={() => loadWorkflowsList()} size="2"><RefreshCw size={16} /> Reload</Button>
 									{editingWorkflowId && (
-										<Button variant="solid" style={{ backgroundColor: '#f0ad44', color: '#211d1e' }} onClick={async () => {
+										<Button variant="solid" style={{ backgroundColor: '#f0ad44', color: '#161617', paddingLeft: '16px', paddingRight: '16px', fontWeight: 600, cursor: 'pointer' }} onClick={async () => {
 											if (!workflowName.trim()) {
 												showToast("Naming Required", "Please provide a name for your workflow in the header.");
 												return;
@@ -1576,34 +1653,34 @@ export default function App() {
 												console.error('Save failed', e);
 												showToast("Save Failed", "There was an error saving the workflow.");
 											} finally { setIsLoading(false); }
-										}} size="2" style={{ paddingLeft: '16px', paddingRight: '16px' }}><Save size={16} /> Save Workflow</Button>
+										}} size="2"><Save size={16} /> Save Workflow</Button>
 									)}
 								</Flex>
 							) : (
 								<Flex align="center" gap="4">
-									<Search size={18} color="#111827" style={{ cursor: 'pointer' }} />
-									<Bell size={18} color="#111827" style={{ cursor: 'pointer' }} />
+									<Search size={18} color="#ffffff" style={{ cursor: 'pointer' }} />
+									<Bell size={18} color="#ffffff" style={{ cursor: 'pointer' }} />
 								</Flex>
 							)}
 						</Flex>
 					</header>
 
 					{activeView !== 'agent-detail' && (
-						<Box p={{ initial: "4", md: "6", lg: "8" }}>
+						<Box p={{ initial: "3", md: "4", lg: "5" }}>
 						{activeView === 'dashboard' ? (
-							<Flex direction="column" gap="6">
+							<Flex direction="column" gap="4">
 								{/* Metrics */}
-								<Grid columns={{ initial: '1', sm: '2', lg: '4' }} gap="4">
+								<Grid columns={{ initial: '1', sm: '2', lg: '4' }} gap="3">
 									{[
 										{ label: 'Total Agents', value: agentsList.length, change: '+0 this week', up: true },
 										{ label: 'Active Sessions', value: '0', change: 'Live', up: true },
 										{ label: 'Latency (Avg)', value: '1.2s', change: '-10%', up: false },
 										{ label: 'Success Rate', value: '100%', change: 'Steady', up: true }
 									].map((metric, i) => (
-										<Card key={i} size="2" style={{ borderRadius: 'var(--radius-2)', border: '1px solid #e5e7eb', padding: '16px', backgroundColor: '#ffffff', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
+										<Card key={i} size="1" style={{ borderRadius: '8px', border: '1px solid #e5e7eb', padding: '12px', backgroundColor: '#ffffff', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
 											<Flex direction="column" gap="1">
-												<Text size="2" style={{ color: '#111827', fontWeight: 600 }}>{metric.label}</Text>
-												<Heading size="6" weight="bold" style={{ color: '#111827' }}>{metric.value}</Heading>
+												<Text size="1" style={{ color: '#111827', fontWeight: 600, fontSize: '12px' }}>{metric.label}</Text>
+												<Heading size="5" weight="bold" style={{ color: '#111827' }}>{metric.value}</Heading>
 												<Flex gap="1" align="center" mt="1">
 													<Badge color={metric.up ? 'amber' : 'orange'} variant="soft" radius="full">
 														{metric.change}
@@ -1616,10 +1693,10 @@ export default function App() {
 
 
 								{/* Bottom Row */}
-								<Grid columns={{ initial: '1', lg: '1fr 340px' }} gap="4">
-									<Box style={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '14px', padding: '24px', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
-										<Heading size="4" mb="1" style={{ color: '#111827', fontWeight: 800 }}>Performance Overview</Heading>
-										<Text size="1" style={{ color: '#111827', marginBottom: '20px', display: 'block', fontWeight: 500 }}>Last 7 days success metrics</Text>
+								<Grid columns={{ initial: '1', lg: '1fr 340px' }} gap="3">
+									<Box style={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
+										<Heading size="3" mb="1" style={{ color: '#111827', fontWeight: 800 }}>Performance Overview</Heading>
+										<Text size="1" style={{ color: '#111827', marginBottom: '16px', display: 'block', fontWeight: 500, fontSize: '12px' }}>Last 7 days success metrics</Text>
 										<Flex align="end" gap="2" style={{ height: '120px' }}>
 											{[55, 72, 61, 88, 76, 95, 82].map((h, index) => (
 												<Box key={index} style={{ flexGrow: 1, backgroundColor: index === 5 ? '#f0ad44' : '#f3f4f6', height: `${h}%`, borderRadius: '4px 4px 0 0', transition: 'height 0.3s' }} />
@@ -1627,18 +1704,18 @@ export default function App() {
 										</Flex>
 									</Box>
 
-									<Box style={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '14px', padding: '24px', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
-										<Heading size="4" mb="4" style={{ color: '#111827', fontWeight: 700 }}>System Usage</Heading>
-										<Flex direction="column" gap="4">
+									<Box style={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
+										<Heading size="3" mb="3" style={{ color: '#111827', fontWeight: 700 }}>System Usage</Heading>
+										<Flex direction="column" gap="3">
 											{[
 												{ label: 'API Bandwidth', value: 62, color: '#f0ad44' },
 												{ label: 'Token Utilization', value: 48, color: '#d97706' },
 												{ label: 'Concurrency', value: 35, color: '#fcd34d' }
 											].map(item => (
 												<Box key={item.label}>
-													<Flex justify="between" mb="1" style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase' }}>
-														<Text style={{ color: '#111827' }}>{item.label}</Text>
-														<Text style={{ color: '#111827' }}>{item.value}%</Text>
+													<Flex justify="between" mb="1" style={{ fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase' }}>
+														<Text style={{ color: '#111827', fontSize: '12px' }}>{item.label}</Text>
+														<Text style={{ color: '#111827', fontSize: '12px' }}>{item.value}%</Text>
 													</Flex>
 													<Box style={{ height: '6px', borderRadius: '3px', backgroundColor: '#f3f4f6', overflow: 'hidden' }}>
 														<Box style={{ height: '100%', width: `${item.value}%`, backgroundColor: item.color, borderRadius: '3px' }} />
@@ -1667,7 +1744,7 @@ export default function App() {
 														<Search size={14} />
 													</TextField.Slot>
 												</TextField.Root>
-												<Button variant="solid" size="2" style={{ backgroundColor: '#f0ad44', color: '#211d1e' }} onClick={() => {
+												<Button variant="solid" size="2" style={{ backgroundColor: '#f0ad44', color: '#161617', fontWeight: 600, cursor: 'pointer' }} onClick={() => {
 													setWorkflowsPayload(null);
 													setWorkflowName('New Workflow');
 													setEditingWorkflowId('new');
@@ -1681,77 +1758,95 @@ export default function App() {
 											<Table.Root variant="ghost" size="1">
 												<Table.Header>
 													<Table.Row>
-														<Table.ColumnHeaderCell>WORKFLOW NAME</Table.ColumnHeaderCell>
-														<Table.ColumnHeaderCell>WORKFLOW ID</Table.ColumnHeaderCell>
-														<Table.ColumnHeaderCell>NODES</Table.ColumnHeaderCell>
-														<Table.ColumnHeaderCell>CREATED</Table.ColumnHeaderCell>
-														<Table.ColumnHeaderCell justify="center">ACTIONS</Table.ColumnHeaderCell>
+														<Table.ColumnHeaderCell style={{ fontSize: '12px' }}>WORKFLOW NAME</Table.ColumnHeaderCell>
+														<Table.ColumnHeaderCell style={{ fontSize: '12px' }}>DESCRIPTION</Table.ColumnHeaderCell>
+														<Table.ColumnHeaderCell style={{ fontSize: '12px' }}>WORKFLOW ID</Table.ColumnHeaderCell>
+														<Table.ColumnHeaderCell style={{ fontSize: '12px' }}>NODES</Table.ColumnHeaderCell>
+														<Table.ColumnHeaderCell style={{ fontSize: '12px' }}>CREATED</Table.ColumnHeaderCell>
+														<Table.ColumnHeaderCell justify="center" style={{ fontSize: '12px' }}>ACTIONS</Table.ColumnHeaderCell>
 													</Table.Row>
 												</Table.Header>
 												<Table.Body>
-													{paginatedWorkflows.map((wf) => (
-														<Table.Row key={wf.id} align="center">
+													{paginatedWorkflows.map((wf) => {
+														const isSelected = editingWorkflowId === wf.id;
+														return (
+															<Table.Row 
+																key={wf.id} 
+																align="center" 
+																onClick={() => {
+																	setWorkflowsPayload({ nodes: wf.nodes, edges: wf.edges });
+																	setWorkflowName(wf.name);
+																	setEditingWorkflowId(wf.id);
+																}} 
+																style={{ 
+																	cursor: 'pointer',
+																	boxShadow: isSelected ? 'inset 4px 0 0 0 #f0ad44' : 'inset 4px 0 0 0 transparent'
+																}} 
+																className={`hoverable-row ${isSelected ? 'active-row' : ''}`}
+															>
 															<Table.Cell>
-																<Flex align="center" gap="3">
-																	<Box style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-1)', backgroundColor: '#fdf4ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-																		<Workflow size={18} color="#a21caf" />
-																	</Box>
-																	<Box>
-																		<Text size="2" weight="bold" style={{ display: 'block', color: '#111827' }}>{wf.name}</Text>
-																		<Text size="1" weight="medium" style={{ color: '#111827', display: 'block', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{wf.description || 'No description'}</Text>
-																	</Box>
-																</Flex>
+																<Text weight="bold" style={{ color: '#111827', fontSize: '12px', whiteSpace: 'nowrap' }}>{wf.name}</Text>
+															</Table.Cell>
+															<Table.Cell>
+																<Text style={{ color: '#111827', fontSize: '12px', whiteSpace: 'nowrap' }}>{wf.description || '—'}</Text>
 															</Table.Cell>
 															<Table.Cell>
 																<Tooltip content={wf.id}>
-																	<Text size="1" style={{ color: '#111827', fontFamily: 'monospace', fontWeight: 500, backgroundColor: '#f8fafc', padding: '2px 6px', borderRadius: '4px', cursor: 'help' }}>
+																	<Text style={{ color: '#111827', fontFamily: 'monospace', fontWeight: 500, backgroundColor: '#f8fafc', padding: '2px 6px', borderRadius: '4px', cursor: 'help', fontSize: '12px' }}>
 																		{wf.id.substring(0, 8)}...
 																	</Text>
 																</Tooltip>
 															</Table.Cell>
 															<Table.Cell>
-																<Badge color="purple" variant="soft" radius="full">
+																<span style={{ color: '#f0ad44', fontWeight: 800, fontSize: '10px', padding: '3px 8px', borderRadius: '4px', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap', border: '1px solid rgba(240, 173, 68, 0.2)', backgroundColor: 'rgba(240, 173, 68, 0.05)' }}>
 																	{(wf.nodes as any)?.length || 0} States
-																</Badge>
+																</span>
 															</Table.Cell>
-															<Table.Cell><Text size="2" style={{ color: '#111827' }}>{new Date(wf.created_at).toLocaleDateString()}</Text></Table.Cell>
-															<Table.Cell>
+															<Table.Cell><Text style={{ color: '#111827', fontSize: '12px' }}>{new Date(wf.created_at).toLocaleDateString()}</Text></Table.Cell>
+															<Table.Cell onClick={(e) => e.stopPropagation()}>
 																<Flex gap="2" justify="center" align="center">
-																	<Button variant="soft" color="amber" size="1" onClick={() => {
-																		setWorkflowsPayload({ nodes: wf.nodes, edges: wf.edges });
-																		setWorkflowName(wf.name);
-																		setEditingWorkflowId(wf.id);
-																	}}><ExternalLink size={14} /> Open Designer</Button>
-
-																	<AlertDialog.Root>
-																		<AlertDialog.Trigger>
-																			<Button variant="ghost" color="red" size="1"><Trash2 size={14} /></Button>
-																		</AlertDialog.Trigger>
-																		<AlertDialog.Content maxWidth="450px" style={{ border: '1px solid #e5e7eb', borderRadius: '12px', backgroundColor: '#ffffff', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.12)' }}>
-																			<AlertDialog.Title style={{ color: '#111827', fontWeight: 800 }}>Delete Workflow</AlertDialog.Title>
-																			<AlertDialog.Description size="2" style={{ color: '#111827' }}>
-																				Are you sure you want to delete the workflow <b>{wf.name}</b>? This action cannot be undone and any agents using this workflow will lose their logic.
-																			</AlertDialog.Description>
-																			<Flex gap="3" mt="4" justify="end" align="center">
-																				<AlertDialog.Cancel>
-																					<Button variant="soft" color="amber"><X size={16} /> Cancel</Button>
-																				</AlertDialog.Cancel>
-																				<AlertDialog.Action>
-																					<Button variant="solid" color="red" onClick={async () => {
-																						await axios.delete(`${API_BASE}/workflows/${wf.id}`);
-																						loadWorkflowsList();
-																						showToast("Workflow Deleted", "The workflow has been removed.");
-																					}}><Trash2 size={16} /> Delete Workflow</Button>
-																				</AlertDialog.Action>
-																			</Flex>
-																		</AlertDialog.Content>
-																	</AlertDialog.Root>
+																	<Popover.Root>
+																		<Popover.Trigger onClick={(e) => e.stopPropagation()}>
+																			<IconButton variant="ghost" color="gray" style={{ cursor: 'pointer' }}>
+																				<MoreVertical size={16} />
+																			</IconButton>
+																		</Popover.Trigger>
+																		<Popover.Content size="1" style={{ padding: '4px' }} onClick={(e) => e.stopPropagation()}>
+																			<AlertDialog.Root>
+																				<AlertDialog.Trigger onClick={(e) => e.stopPropagation()}>
+																					<Button variant="ghost" color="red" size="1" style={{ width: '100%', justifyContent: 'start', cursor: 'pointer' }}>
+																						<Trash2 size={14} style={{ marginRight: '6px' }} /> Delete Workflow
+																					</Button>
+																				</AlertDialog.Trigger>
+																				<AlertDialog.Content maxWidth="450px" style={{ border: '1px solid #e5e7eb', borderRadius: '12px', backgroundColor: '#ffffff', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.12)' }}>
+																					<AlertDialog.Title style={{ color: '#111827', fontWeight: 800 }}>Delete Workflow</AlertDialog.Title>
+																					<AlertDialog.Description size="2" style={{ color: '#111827' }}>
+																						Are you sure you want to delete the workflow <b>{wf.name}</b>? This action cannot be undone and any agents using this workflow will lose their logic.
+																					</AlertDialog.Description>
+																					<Flex gap="3" mt="4" justify="end" align="center">
+																						<AlertDialog.Cancel>
+																							<Button variant="outline" color="gray" style={{ cursor: 'pointer' }}><X size={16} /> Cancel</Button>
+																						</AlertDialog.Cancel>
+																						<AlertDialog.Action>
+																							<Button variant="solid" color="red" style={{ cursor: 'pointer' }} onClick={async (e) => {
+																								e.stopPropagation();
+																								await axios.delete(`${API_BASE}/workflows/${wf.id}`);
+																								loadWorkflowsList();
+																								showToast("Workflow Deleted", "The workflow has been removed.");
+																							}}><Trash2 size={16} /> Delete Workflow</Button>
+																						</AlertDialog.Action>
+																					</Flex>
+																				</AlertDialog.Content>
+																			</AlertDialog.Root>
+																		</Popover.Content>
+																	</Popover.Root>
 																</Flex>
 															</Table.Cell>
 														</Table.Row>
-													))}
+													);
+												})}
 													{workflowsList.length === 0 && (
-														<Table.Row><Table.Cell colSpan={5} style={{ textAlign: 'center', padding: '40px', color: '#111827' }}>No workflows found. Design your first logic graph.</Table.Cell></Table.Row>
+														<Table.Row><Table.Cell colSpan={6} style={{ textAlign: 'center', padding: '40px', color: '#111827' }}>No workflows found. Design your first logic graph.</Table.Cell></Table.Row>
 													)}
 												</Table.Body>
 											</Table.Root>
@@ -1781,12 +1876,12 @@ export default function App() {
 								)}
 							</Flex>
 						) : activeView === 'logs' ? (
-							<Card size="2" style={{ borderRadius: 'var(--radius-2)', backgroundColor: 'white', border: '1px solid #e8e5e0', padding: '24px' }}>
+							<Card size="1" style={{ borderRadius: '8px', backgroundColor: 'white', border: '1px solid #e8e5e0', padding: '16px' }}>
 								{/* Header */}
-								<Flex direction={{ initial: 'column', md: 'row' }} justify="between" align={{ initial: 'stretch', md: 'center' }} gap="4" mb="5">
+								<Flex direction={{ initial: 'column', md: 'row' }} justify="between" align={{ initial: 'stretch', md: 'center' }} gap="4" mb="3">
 									<Box>
-										<Heading size={{ initial: '3', md: '4' }} mb="1" style={{ color: '#111827', fontWeight: 800 }}>Conversation History</Heading>
-										<Text size="2" style={{ color: '#111827', fontWeight: 500 }}>{filteredLogs.length} session{filteredLogs.length !== 1 ? 's' : ''} recorded</Text>
+										<Heading size={{ initial: '3', md: '4' }} mb="1" style={{ color: '#111827', fontWeight: 800 }}>Conversations</Heading>
+										<Text size="1" style={{ color: '#111827', fontWeight: 500, fontSize: '12px' }}>{filteredLogs.length} session{filteredLogs.length !== 1 ? 's' : ''} recorded</Text>
 									</Box>
 									<Flex gap="3" wrap="wrap" align="center">
 										{/* Search */}
@@ -1820,7 +1915,7 @@ export default function App() {
 											</Select.Content>
 										</Select.Root>
 										{/* Refresh */}
-										<Button variant="soft" color="amber" size="2" onClick={loadLogs} loading={isLoadingLogs}>
+										<Button variant="solid" style={{ backgroundColor: '#f0ad44', color: '#161617', fontWeight: 600, cursor: 'pointer' }} size="2" onClick={loadLogs} loading={isLoadingLogs}>
 											<RefreshCw size={14} /> Refresh
 										</Button>
 									</Flex>
@@ -1831,101 +1926,77 @@ export default function App() {
 									<Table.Root variant="ghost" size="1">
 										<Table.Header>
 											<Table.Row>
-												<Table.ColumnHeaderCell>AGENT</Table.ColumnHeaderCell>
-												<Table.ColumnHeaderCell>TYPE</Table.ColumnHeaderCell>
-												<Table.ColumnHeaderCell>MESSAGES</Table.ColumnHeaderCell>
-												<Table.ColumnHeaderCell>TIME</Table.ColumnHeaderCell>
-												<Table.ColumnHeaderCell>SUMMARY</Table.ColumnHeaderCell>
-												<Table.ColumnHeaderCell>STATUS</Table.ColumnHeaderCell>
-												<Table.ColumnHeaderCell justify="center">ACTIONS</Table.ColumnHeaderCell>
+												<Table.ColumnHeaderCell style={{ fontSize: '12px' }}>AGENT</Table.ColumnHeaderCell>
+												<Table.ColumnHeaderCell style={{ fontSize: '12px' }}>TYPE</Table.ColumnHeaderCell>
+												<Table.ColumnHeaderCell style={{ fontSize: '12px' }}>MESSAGES</Table.ColumnHeaderCell>
+												<Table.ColumnHeaderCell style={{ fontSize: '12px' }}>TIME</Table.ColumnHeaderCell>
+												<Table.ColumnHeaderCell style={{ fontSize: '12px' }}>SUMMARY</Table.ColumnHeaderCell>
+												<Table.ColumnHeaderCell style={{ fontSize: '12px' }}>STATUS</Table.ColumnHeaderCell>
 											</Table.Row>
 										</Table.Header>
 										<Table.Body>
 											{isLoadingLogs ? (
 												<Table.Row>
-													<Table.Cell colSpan={6} style={{ textAlign: 'center', padding: '48px' }}>
-														<Flex justify="center" align="center" gap="2"><RefreshCw size={18} className="animate-spin" color="#111827" /><Text size="2" style={{ color: '#111827' }}>Loading history...</Text></Flex>
+													<Table.Cell colSpan={6} style={{ textAlign: 'center', padding: '32px' }}>
+														<Flex justify="center" align="center" gap="2"><RefreshCw size={18} className="animate-spin" color="#111827" /><Text style={{ color: '#111827', fontSize: '12px' }}>Loading history...</Text></Flex>
 													</Table.Cell>
 												</Table.Row>
 											) : paginatedLogs.length === 0 ? (
 												<Table.Row>
-													<Table.Cell colSpan={6} style={{ textAlign: 'center', padding: '64px' }}>
+													<Table.Cell colSpan={6} style={{ textAlign: 'center', padding: '40px' }}>
 														<Flex direction="column" align="center" gap="2">
 															<History size={32} color="#111827" />
-															<Text size="2" weight="bold" style={{ color: '#111827' }}>No history found</Text>
-															<Text size="1" style={{ color: '#111827' }}>Sessions will appear here after interactions complete.</Text>
+															<Text weight="bold" style={{ color: '#111827', fontSize: '12px' }}>No history found</Text>
+															<Text style={{ color: '#111827', fontSize: '12px' }}>Sessions will appear here after interactions complete.</Text>
 														</Flex>
 													</Table.Cell>
 												</Table.Row>
 											) : paginatedLogs.map(log => (
-												<Table.Row key={log.id} align="center">
+												<Table.Row key={log.id} align="center" onClick={() => { setSelectedLogForTranscript(log); setIsTranscriptModalOpen(true); }} style={{ cursor: 'pointer' }} className="hoverable-row">
 													{/* Agent */}
 													<Table.Cell>
-														<Flex align="center" gap="2">
-															<Box style={{ width: '28px', height: '28px', borderRadius: '6px', backgroundColor: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-																<Brain size={14} color="#111827" />
-															</Box>
-															<Text size="2" weight="medium" style={{ color: '#111827' }}>{log.agent_name}</Text>
-														</Flex>
+														<Text style={{ color: '#111827', fontSize: '12px', fontWeight: 600 }}>{log.agent_name}</Text>
 													</Table.Cell>
 													{/* Type */}
 													<Table.Cell>
 														<Flex align="center" gap="2">
-															<Badge color={log.agent_type === 'workflow' ? 'purple' : 'blue'} variant="soft" radius="full">
+															<span style={{ color: '#f0ad44', fontWeight: 800, fontSize: '10px', padding: '3px 8px', borderRadius: '4px', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap', border: '1px solid rgba(240, 173, 68, 0.2)', backgroundColor: 'rgba(240, 173, 68, 0.05)' }}>
 																{log.agent_type === 'workflow' ? 'WORKFLOW' : 'GENERAL'}
-															</Badge>
-															<Badge color={log.conversation_type === 'chat' ? 'blue' : 'amber'} variant="soft" radius="full">
-																{log.conversation_type === 'chat' ? <MessageSquare size={10} style={{ marginRight: '3px' }} /> : <Mic size={10} style={{ marginRight: '3px' }} />}
+															</span>
+															<span style={{ color: '#f0ad44', fontWeight: 800, fontSize: '10px', padding: '3px 8px', borderRadius: '4px', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap', border: '1px solid rgba(240, 173, 68, 0.2)', backgroundColor: 'rgba(240, 173, 68, 0.05)' }}>
 																{log.conversation_type === 'chat' ? 'CHAT' : 'VOICE'}
-															</Badge>
+															</span>
 														</Flex>
 													</Table.Cell>
 													{/* Messages */}
-													<Table.Cell>
-														<Flex direction="column" gap="1">
-															<Text size="2" style={{ color: '#111827', fontWeight: 600 }}>{log.message_count} turns</Text>
-															<Text size="1" style={{ color: '#111827' }}>{log.user_turn_count}u / {log.agent_turn_count}a</Text>
-														</Flex>
+													<Table.Cell style={{ whiteSpace: 'nowrap' }}>
+														<Text style={{ color: '#111827', fontSize: '12px', fontWeight: 600 }}>
+															{log.message_count} turns ({log.user_turn_count} User / {log.agent_turn_count} Agent)
+														</Text>
 													</Table.Cell>
 													{/* Time */}
-													<Table.Cell>
-														<Flex direction="column" gap="1">
-															<Text size="2" style={{ color: '#111827' }}>{log.created_at ? new Date(log.created_at).toLocaleDateString() : '—'}</Text>
-															<Text size="1" style={{ color: '#111827' }}>{log.created_at ? new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</Text>
-														</Flex>
+													<Table.Cell style={{ whiteSpace: 'nowrap' }}>
+														<Text style={{ color: '#111827', fontSize: '12px' }}>
+															{log.created_at ? `${new Date(log.created_at).toLocaleDateString()} at ${new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : '—'}
+														</Text>
 													</Table.Cell>
 													{/* Summary */}
 													<Table.Cell style={{ maxWidth: '200px' }}>
 														{log.summary ? (
 															<Tooltip content={log.summary}>
-																<Text size="1" style={{ color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>
+																<Text style={{ color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', fontSize: '12px' }}>
 																	{log.summary}
 																</Text>
 															</Tooltip>
 														) : (
-															<Text size="1" italic style={{ color: '#111827' }}>Pending...</Text>
+															<Text style={{ color: '#111827', fontSize: '12px', fontStyle: 'italic' }}>Pending...</Text>
 														)}
 													</Table.Cell>
 													{/* Status */}
 													<Table.Cell>
-														<Badge color="amber" variant="soft" radius="full" style={{ fontWeight: 700 }}>
+														<span style={{ color: '#f0ad44', fontWeight: 800, fontSize: '10px', padding: '3px 8px', borderRadius: '4px', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap', border: '1px solid rgba(240, 173, 68, 0.2)', backgroundColor: 'rgba(240, 173, 68, 0.05)' }}>
 															● COMPLETED
-														</Badge>
-													</Table.Cell>
-													<Table.Cell>
-														<Flex justify="center">
-															<Button
-																size="1"
-																variant="soft"
-																color="amber"
-																onClick={() => {
-																	setSelectedLogForTranscript(log);
-																	setIsTranscriptModalOpen(true);
-																}}
-															>
-																<ExternalLink size={12} /> View Chat
-															</Button>
-														</Flex>
+														</span>
 													</Table.Cell>
 												</Table.Row>
 											))}
@@ -1947,11 +2018,11 @@ export default function App() {
 							</Card>
 						) : activeView === 'builder' ? (
 							<Box>
-								<Card size="2" style={{ borderRadius: 'var(--radius-2)', backgroundColor: 'white', border: '1px solid #e8e5e0', padding: '24px' }}>
-									<Flex direction={{ initial: 'column', md: 'row' }} justify="between" align={{ initial: 'stretch', md: 'center' }} gap="4" mb="5">
+								<Card size="1" style={{ borderRadius: '8px', backgroundColor: 'white', border: '1px solid #e8e5e0', padding: '16px' }}>
+									<Flex direction={{ initial: 'column', md: 'row' }} justify="between" align={{ initial: 'stretch', md: 'center' }} gap="4" mb="3">
 										<Box>
 											<Heading size={{ initial: '3', md: '4' }} mb="1" style={{ color: '#111827', fontWeight: 800 }}>AI Agents</Heading>
-											<Text size={{ initial: '1', md: '2' }} style={{ color: '#111827', fontWeight: 500 }}>Manage your fleet of deployed voice assistants</Text>
+											<Text size="1" style={{ color: '#111827', fontWeight: 500, fontSize: '12px' }}>Manage your fleet of deployed voice assistants</Text>
 										</Box>
 										<Flex gap="3" direction={{ initial: 'column', md: 'row' }} align={{ initial: 'stretch', md: 'center' }}>
 											<TextField.Root placeholder="Search agents..." value={agentSearchQuery} onChange={e => setAgentSearchQuery(e.target.value)} size="2">
@@ -1959,7 +2030,7 @@ export default function App() {
 													<Search size={14} />
 												</TextField.Slot>
 											</TextField.Root>
-											<Button variant="solid" size="2" onClick={openNewAgentBuilder} style={{ borderRadius: 'var(--radius-1)', fontWeight: 600, backgroundColor: '#f0ad44', color: '#211d1e' }}>
+											<Button variant="solid" size="2" onClick={openNewAgentBuilder} style={{ borderRadius: 'var(--radius-1)', fontWeight: 600, backgroundColor: '#f0ad44', color: '#161617', cursor: 'pointer' }}>
 												<Plus size={14} /> Create New Agent
 											</Button>
 										</Flex>
@@ -1969,12 +2040,12 @@ export default function App() {
 										<Table.Root variant="ghost" size="1">
 											<Table.Header>
 												<Table.Row>
-													<Table.ColumnHeaderCell>AGENT NAME</Table.ColumnHeaderCell>
-													<Table.ColumnHeaderCell>AGENT ID</Table.ColumnHeaderCell>
-													<Table.ColumnHeaderCell>CATEGORY</Table.ColumnHeaderCell>
-													<Table.ColumnHeaderCell>INDUSTRY</Table.ColumnHeaderCell>
-													<Table.ColumnHeaderCell>USE CASE</Table.ColumnHeaderCell>
-													<Table.ColumnHeaderCell>MODE</Table.ColumnHeaderCell>
+													<Table.ColumnHeaderCell style={{ fontSize: '12px' }}>AGENT NAME</Table.ColumnHeaderCell>
+													<Table.ColumnHeaderCell style={{ fontSize: '12px' }}>AGENT ID</Table.ColumnHeaderCell>
+													<Table.ColumnHeaderCell style={{ fontSize: '12px' }}>CATEGORY</Table.ColumnHeaderCell>
+													<Table.ColumnHeaderCell style={{ fontSize: '12px' }}>INDUSTRY</Table.ColumnHeaderCell>
+													<Table.ColumnHeaderCell style={{ fontSize: '12px' }}>USE CASE</Table.ColumnHeaderCell>
+													<Table.ColumnHeaderCell style={{ fontSize: '12px' }}>MODE</Table.ColumnHeaderCell>
 												</Table.Row>
 											</Table.Header>
 
@@ -1985,38 +2056,26 @@ export default function App() {
 													<Table.Row 
 														key={agent.id} 
 														align="center" 
-														className={`transition-colors duration-200 cursor-pointer ${isSelected ? 'bg-[#fffbeb]' : 'hover:bg-slate-50'}`}
+														className={`hoverable-row cursor-pointer ${isSelected ? 'active-row' : ''}`}
 														style={{ 
 															boxShadow: isSelected ? 'inset 4px 0 0 0 #f0ad44' : 'inset 4px 0 0 0 transparent',
 														}} 
 														onClick={() => loadAgent(agent.id, true)}
 													>
 														<Table.Cell>
-															<Flex align="center" gap="3">
-																<Box style={{ 
-																	width: '36px', height: '36px', borderRadius: '8px', 
-																	backgroundColor: isSelected ? '#fde68a' : '#f1f5f9', 
-																	display: 'flex', alignItems: 'center', justifyContent: 'center',
-																	transition: 'background-color 0.2s ease'
-																}}>
-																	<Brain size={20} style={{ color: isSelected ? '#92400e' : '#475569', transition: 'color 0.2s ease' }} />
-																</Box>
-																<Box>
-																	<Text size="2" weight="bold" as="div">{agent.name || agent.config?.name}</Text>
-																</Box>
-															</Flex>
+															<Text weight="bold" style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>{agent.name || agent.config?.name}</Text>
 														</Table.Cell>
 														<Table.Cell>
 															<Flex align="center" gap="2">
 																<Tooltip content={agent.id}>
-																	<Text size="1" style={{ color: '#111827', fontFamily: 'monospace', fontWeight: 500, backgroundColor: '#f8fafc', padding: '2px 6px', borderRadius: '4px' }}>
+																	<Text style={{ color: '#111827', fontFamily: 'monospace', fontWeight: 500, backgroundColor: '#f8fafc', padding: '2px 6px', borderRadius: '4px', fontSize: '12px' }}>
 																		{agent.id.substring(0, 8)}...
 																	</Text>
 																</Tooltip>
 																<IconButton
 																	size="1"
 																	variant="ghost"
-																	style={{ color: '#111827' }}
+																	style={{ color: '#111827', cursor: 'pointer' }}
 																	onClick={(e) => {
 																		e.stopPropagation();
 																		navigator.clipboard.writeText(agent.id);
@@ -2028,24 +2087,24 @@ export default function App() {
 															</Flex>
 														</Table.Cell>
 														<Table.Cell>
-															<Badge color={agent.config?.category === 'business' ? 'orange' : agent.config?.category === 'personal' ? 'amber' : 'gray'} variant="soft">
-																{(agent.config?.category || 'blank').toUpperCase()}
-															</Badge>
+															<span style={{ color: '#f0ad44', fontWeight: 800, fontSize: '10px', padding: '3px 8px', borderRadius: '4px', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap', border: '1px solid rgba(240, 173, 68, 0.2)', backgroundColor: 'rgba(240, 173, 68, 0.05)' }}>
+																{(agent.config?.category || 'blank')}
+															</span>
 														</Table.Cell>
 														<Table.Cell>
-															<Text size="1" style={{ color: '#111827', fontWeight: 500 }}>
+															<Text style={{ color: '#111827', fontWeight: 500, fontSize: '12px' }}>
 																{agent.config?.industry || '-'}
 															</Text>
 														</Table.Cell>
 														<Table.Cell>
-															<Text size="1" style={{ color: '#111827', fontWeight: 500 }}>
+															<Text style={{ color: '#111827', fontWeight: 500, fontSize: '12px' }}>
 																{agent.config?.use_case || (agent.config?.category === 'blank' ? '-' : 'General')}
 															</Text>
 														</Table.Cell>
 														<Table.Cell>
-															<Badge color={agent.config?.agent_type === 'workflow' ? 'purple' : 'blue'} variant="soft">
+															<span style={{ color: '#f0ad44', fontWeight: 800, fontSize: '10px', padding: '3px 8px', borderRadius: '4px', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap', border: '1px solid rgba(240, 173, 68, 0.2)', backgroundColor: 'rgba(240, 173, 68, 0.05)' }}>
 																{agent.config?.agent_type === 'workflow' ? 'WORKFLOW' : 'GENERAL'}
-															</Badge>
+															</span>
 														</Table.Cell>
 													</Table.Row>
 												);
@@ -2053,7 +2112,7 @@ export default function App() {
 												{agentsList.length === 0 && (
 													<Table.Row>
 														<Table.Cell colSpan={5} style={{ textAlign: 'center', padding: '40px' }}>
-															<Text size="2" style={{ color: '#111827' }}>No agents found. Create one to start testing.</Text>
+															<Text style={{ color: '#111827', fontSize: '12px' }}>No agents found. Create one to start testing.</Text>
 														</Table.Cell>
 													</Table.Row>
 												)}
@@ -2515,29 +2574,24 @@ export default function App() {
 
 					{/* Agent Detail Full Page View */}
 					{activeView === 'agent-detail' && (
-						<Box p={{ initial: "4", md: "6", lg: "8" }}>
+						<Box p={{ initial: "3", md: "4", lg: "5" }}>
 							<Flex direction="column" style={{ minHeight: 'calc(100vh - 120px)', border: '1px solid #e5e7eb', borderRadius: '12px', overflow: 'hidden', backgroundColor: '#ffffff' }}>
-								<Box p="4" style={{ borderBottom: '1px solid #e5e7eb', backgroundColor: '#fafafa' }}>
-									<Flex justify="between" align="center">
-										<Box>
-											<Flex align="center" gap="3" mb="1">
-												<Box style={{ backgroundColor: '#fffbeb', color: '#92400e', padding: '6px', borderRadius: '8px' }}>
-													<Bot size={24} />
-												</Box>
-												<Heading as="h2" style={{ margin: 0, fontWeight: 800, fontSize: '24px', letterSpacing: '-0.02em', color: '#111827' }}>
-													{currentAgent ? 'Edit Agent' : creationStep === 'CATEGORY' ? 'Select Agent Type' : creationStep === 'BUSINESS_INDUSTRY' ? 'Select Industry' : creationStep === 'BUSINESS_USE_CASE' || creationStep === 'PERSONAL_USE_CASE' ? 'Select Use Case' : 'Configure Agent'}
-												</Heading>
-											</Flex>
-											<Text size="2" style={{ display: 'block', color: '#111827', marginLeft: '45px' }}>
+								<Box p="3" style={{ borderBottom: '1px solid #e5e7eb', backgroundColor: '#fafafa' }}>
+									<Flex justify="between" align="center" wrap="wrap" gap="2">
+										<Box style={{ minWidth: 0 }}>
+											<Heading as="h2" style={{ margin: 0, fontWeight: 800, fontSize: '20px', letterSpacing: '-0.02em', color: '#111827', whiteSpace: 'nowrap' }}>
+												{currentAgent ? 'Edit Agent' : creationStep === 'CATEGORY' ? 'Select Agent Type' : creationStep === 'BUSINESS_INDUSTRY' ? 'Select Industry' : creationStep === 'BUSINESS_USE_CASE' || creationStep === 'PERSONAL_USE_CASE' ? 'Select Use Case' : 'Configure Agent'}
+											</Heading>
+											<Text size="1" style={{ display: 'block', color: '#6b7280', marginTop: '2px', whiteSpace: 'nowrap' }}>
 												{creationStep === 'CATEGORY' ? 'Choose the starting point for your new AI agent.' : creationStep === 'CONFIG' ? 'Fine-tune your agent behavior and technical settings.' : 'Tell us a bit more about what this agent will do.'}
 											</Text>
 										</Box>
-										<Flex gap="3" align="center">
+										<Flex gap="2" align="center" wrap="wrap">
 											{currentAgent && (
-												<Flex gap="2" mr="2">
+												<Flex gap="2" wrap="wrap">
 													<AlertDialog.Root>
 														<AlertDialog.Trigger>
-															<Button variant="soft" color="red" size="2"><Trash2 size={16} /> Delete</Button>
+															<Button variant="outline" size="1" style={{ color: '#dc2626', borderColor: '#fca5a5', whiteSpace: 'nowrap' }}><Trash2 size={14} /> Delete</Button>
 														</AlertDialog.Trigger>
 														<AlertDialog.Content maxWidth="450px" style={{ border: '1px solid #e5e7eb', borderRadius: '12px', backgroundColor: '#ffffff' }}>
 															<AlertDialog.Title style={{ color: '#111827', fontWeight: 800 }}>Delete Agent</AlertDialog.Title>
@@ -2555,33 +2609,33 @@ export default function App() {
 														</AlertDialog.Content>
 													</AlertDialog.Root>
 													<Button
-														variant={isCallActive ? "solid" : "soft"}
-														color={isCallActive ? "red" : "amber"}
-														size="2"
+														variant={isCallActive ? "solid" : "outline"}
+														size="1"
+														style={isCallActive ? { backgroundColor: '#dc2626', color: '#fff', whiteSpace: 'nowrap' } : { borderColor: '#f0ad44', color: '#92400e', whiteSpace: 'nowrap' }}
 														loading={isConnecting}
 														disabled={isConnecting || isChatConnecting || currentAgent.config?.chat_only}
 														onClick={(e) => { e.stopPropagation(); toggleCall(currentAgent); }}
 													>
-														{isCallActive ? <PhoneOff size={16} /> : <Phone size={16} />}
+														{isCallActive ? <PhoneOff size={14} /> : <Phone size={14} />}
 														{currentAgent.config?.chat_only ? "Chat Only" : (isCallActive ? "Stop Voice" : "Test Voice")}
 													</Button>
 													<Button
-														variant={isChatActive ? "solid" : "soft"}
-														color={isChatActive ? "red" : "blue"}
-														size="2"
+														variant={isChatActive ? "solid" : "outline"}
+														size="1"
+														style={isChatActive ? { backgroundColor: '#dc2626', color: '#fff', whiteSpace: 'nowrap' } : { borderColor: '#f0ad44', color: '#92400e', whiteSpace: 'nowrap' }}
 														loading={isChatConnecting}
 														disabled={isChatConnecting || isConnecting}
 														onClick={(e) => { e.stopPropagation(); toggleChatSession(currentAgent); }}
 													>
-														{isChatActive ? <X size={16} /> : <MessageSquare size={16} />}
+														{isChatActive ? <X size={14} /> : <MessageSquare size={14} />}
 														{isChatActive ? "End Chat" : "Test Chat"}
 													</Button>
 												</Flex>
 											)}
-											<Button variant="ghost" size="2" style={{ color: '#111827' }} onClick={() => setActiveView('builder')}><X size={16} /> Close</Button>
+											<Button variant="ghost" size="1" style={{ color: '#111827', whiteSpace: 'nowrap' }} onClick={() => setActiveView('builder')}><X size={14} /> Close</Button>
 											{creationStep === 'CONFIG' && (
-												<Button variant="solid" size="2" style={{ backgroundColor: '#f0ad44', color: '#211d1e' }} onClick={() => createAgent()} loading={isLoading}>
-													{currentAgent ? <Save size={16} /> : <Check size={16} />}
+												<Button variant="solid" size="1" style={{ backgroundColor: '#f0ad44', color: '#211d1e', whiteSpace: 'nowrap' }} onClick={() => createAgent()} loading={isLoading}>
+													{currentAgent ? <Save size={14} /> : <Check size={14} />}
 													{currentAgent ? 'Save Changes' : 'Create Agent'}
 												</Button>
 											)}
@@ -2590,7 +2644,7 @@ export default function App() {
 								</Box>
 
 								<Box style={{ flexGrow: 1, overflowY: 'auto', backgroundColor: '#fafafa' }}>
-									<Box p="6">
+									<Box p={{ initial: '3', md: '4' }}>
 										{creationStep === 'CATEGORY' && (
 											<Flex direction="column" align="center" gap="6" py="8">
 												<Box style={{ textAlign: 'center' }}>
@@ -2793,7 +2847,7 @@ export default function App() {
 
 															<Box style={{ backgroundColor: '#f8fafc', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
 																<Flex align="center" gap="3">
-																	<Switch checked={chatOnly} onCheckedChange={setChatOnly} />
+																	<Switch checked={chatOnly} onCheckedChange={setChatOnly} radius="full" />
 																	<Box>
 																		<Text size="2" weight="bold" style={{ color: '#111827' }}>Chat only</Text>
 																		<Text size="1" ml="2" style={{ color: '#111827' }}>Audio will not be processed and only text will be used</Text>
@@ -2804,11 +2858,11 @@ export default function App() {
 															<Flex align="center" gap="4">
 																<Flex align="center" gap="2">
 																	<Text size="2">Send Welcome Message</Text>
-																	<Switch checked={welcomeMessage} onCheckedChange={setWelcomeMessage} />
+																	<Switch checked={welcomeMessage} onCheckedChange={setWelcomeMessage} radius="full" />
 																</Flex>
 																<Flex align="center" gap="2">
 																	<Text size="2">Allow Interruption</Text>
-																	<Switch checked={allowInterruption} onCheckedChange={setAllowInterruption} />
+																	<Switch checked={allowInterruption} onCheckedChange={setAllowInterruption} radius="full" />
 																</Flex>
 															</Flex>
 															<Box>
@@ -2824,14 +2878,9 @@ export default function App() {
 													</Tabs.Content>
 
 													<Tabs.Content value="providers">
-														<Grid columns="3" gap="5">
-															<Flex direction="column" gap="4">
-																<Flex align="center" gap="2" mb="1">
-																	<Box style={{ backgroundColor: '#fffbeb', padding: '6px', borderRadius: '6px', color: '#92400e' }}>
-																		<Mic size={18} />
-																	</Box>
-																	<Heading size="3" style={{ color: '#92400e', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.02em' }}>Transcription (STT)</Heading>
-																</Flex>
+														<Grid columns={{ initial: '1', md: '3' }} gap="4">
+															<Flex direction="column" gap="3">
+																<Text size="2" weight="bold" style={{ color: '#111827', textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: '11px' }}>Transcription (STT)</Text>
 																<Select.Root value={selectedProviders.stt} onValueChange={(v) => setSelectedProviders(prev => ({ ...prev, stt: v }))}>
 																	<Select.Trigger placeholder="Select STT Provider" />
 																	<Select.Content>
@@ -2848,13 +2897,8 @@ export default function App() {
 																)}
 															</Flex>
 
-															<Flex direction="column" gap="4" style={{ padding: '0 10px', borderLeft: '1px solid #e5e7eb', borderRight: '1px solid #e5e7eb' }}>
-																<Flex align="center" gap="2" mb="1">
-																	<Box style={{ backgroundColor: '#fffbeb', padding: '6px', borderRadius: '6px', color: '#92400e' }}>
-																		<Brain size={18} />
-																	</Box>
-																	<Heading size="3" style={{ color: '#92400e', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.02em' }}>Reasoning (LLM)</Heading>
-																</Flex>
+															<Flex direction="column" gap="3">
+																<Text size="2" weight="bold" style={{ color: '#111827', textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: '11px' }}>Reasoning (LLM)</Text>
 																<Select.Root value={selectedProviders.llm} onValueChange={(v) => setSelectedProviders(prev => ({ ...prev, llm: v }))}>
 																	<Select.Trigger placeholder="Select LLM Provider" />
 																	<Select.Content>
@@ -2870,18 +2914,13 @@ export default function App() {
 																	</Select.Root>
 																)}
 																<Flex direction="column" gap="2">
-																	<Text size="2" weight="bold" style={{ color: '#92400e' }}>Temperature: {providerConfigs.llm.temperature || 0.7}</Text>
-																	<Slider defaultValue={[0.7]} max={1} step={0.1} onValueChange={([v]) => updateProviderConfig('llm', 'temperature', v.toString())} color="amber" />
+																	<Text size="2" weight="bold" style={{ color: '#111827', whiteSpace: 'nowrap' }}>Temperature: {providerConfigs.llm.temperature || 0.7}</Text>
+																	<Slider defaultValue={[0.7]} max={1} step={0.1} onValueChange={([v]) => updateProviderConfig('llm', 'temperature', v.toString())} color="amber" radius="full" />
 																</Flex>
 															</Flex>
 
-															<Flex direction="column" gap="4">
-																<Flex align="center" gap="2" mb="1">
-																	<Box style={{ backgroundColor: '#fffbeb', padding: '6px', borderRadius: '6px', color: '#92400e' }}>
-																		<Volume2 size={18} />
-																	</Box>
-																	<Heading size="3" style={{ color: '#92400e', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.02em' }}>Speech (TTS)</Heading>
-																</Flex>
+															<Flex direction="column" gap="3">
+																<Text size="2" weight="bold" style={{ color: '#111827', textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: '11px' }}>Speech (TTS)</Text>
 																<Select.Root value={selectedProviders.tts} onValueChange={(v) => setSelectedProviders(prev => ({ ...prev, tts: v }))}>
 																	<Select.Trigger placeholder="Select TTS Provider" />
 																	<Select.Content>
@@ -2998,7 +3037,7 @@ export default function App() {
 														<Flex direction="column" gap="5" p="2">
 															<Box style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
 																<Flex align="center" gap="3">
-																	<Switch checked={toolsEnabled} onCheckedChange={setToolsEnabled} />
+																	<Switch checked={toolsEnabled} onCheckedChange={setToolsEnabled} radius="full" />
 																	<Box>
 																		<Text size="2" weight="bold" style={{ color: '#111827' }}>Enable Google Workspace Tools</Text>
 																		<Text size="1" ml="2" style={{ color: '#111827' }}>Allow this agent to use Google Sheets, Gmail, and Calendar tools</Text>
@@ -3135,7 +3174,7 @@ export default function App() {
 															<Box style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
 																<Flex direction="column" gap="3">
 																	<Flex align="center" gap="3">
-																		<Switch checked={webSearchEnabled} onCheckedChange={setWebSearchEnabled} />
+																		<Switch checked={webSearchEnabled} onCheckedChange={setWebSearchEnabled} radius="full" />
 																		<Box>
 																			<Text size="2" weight="bold" style={{ color: '#111827' }}>Web Search</Text>
 																			<Text size="1" ml="2" style={{ color: '#111827' }}>Enable your agent to search the web for real-time information and current events</Text>

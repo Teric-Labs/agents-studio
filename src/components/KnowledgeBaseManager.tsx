@@ -10,7 +10,8 @@ import {
   Plus,
   X,
   Search,
-  FileText
+  FileText,
+  MoreVertical
 } from 'lucide-react';
 import { 
   Box, 
@@ -24,8 +25,9 @@ import {
   Dialog,
   AlertDialog,
   Heading,
-  Badge,
-  TextField
+  TextField,
+  Popover,
+  IconButton
 } from '@radix-ui/themes';
 
 
@@ -197,13 +199,13 @@ export const KnowledgeBaseManager: React.FC = () => {
                 
                 <Flex gap="3" mt="5" justify="end">
                   <Dialog.Close>
-                    <Button variant="soft" color="amber">Cancel</Button>
+                    <Button variant="outline" color="gray" style={{ cursor: 'pointer' }}>Cancel</Button>
                   </Dialog.Close>
                 </Flex>
               </Dialog.Content>
             </Dialog.Root>
 
-            <Button variant="soft" color="amber" onClick={fetchFiles} disabled={isLoading}>
+            <Button variant="solid" style={{ backgroundColor: '#f0ad44', color: '#161617', fontWeight: 600, cursor: 'pointer' }} onClick={fetchFiles} disabled={isLoading}>
               <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
             </Button>
           </Flex>
@@ -228,11 +230,11 @@ export const KnowledgeBaseManager: React.FC = () => {
           <Table.Root variant="ghost" size="1">
             <Table.Header>
               <Table.Row>
-                <Table.ColumnHeaderCell>FILENAME</Table.ColumnHeaderCell>
-                <Table.ColumnHeaderCell>TYPE</Table.ColumnHeaderCell>
-                <Table.ColumnHeaderCell>SIZE</Table.ColumnHeaderCell>
-                <Table.ColumnHeaderCell>LAST MODIFIED</Table.ColumnHeaderCell>
-                <Table.ColumnHeaderCell align="center">ACTIONS</Table.ColumnHeaderCell>
+                <Table.ColumnHeaderCell style={{ fontSize: '12px' }}>FILENAME</Table.ColumnHeaderCell>
+                <Table.ColumnHeaderCell style={{ fontSize: '12px' }}>TYPE</Table.ColumnHeaderCell>
+                <Table.ColumnHeaderCell style={{ fontSize: '12px' }}>SIZE</Table.ColumnHeaderCell>
+                <Table.ColumnHeaderCell style={{ fontSize: '12px' }}>LAST MODIFIED</Table.ColumnHeaderCell>
+                <Table.ColumnHeaderCell align="center" style={{ fontSize: '12px' }}>ACTIONS</Table.ColumnHeaderCell>
               </Table.Row>
             </Table.Header>
 
@@ -265,48 +267,77 @@ export const KnowledgeBaseManager: React.FC = () => {
                 const typeInfo = getFileTypeInfo(extension);
 
                 return (
-                  <Table.Row key={file.name} align="center">
+                  <Table.Row key={file.name} align="center" className="hoverable-row">
                     <Table.Cell>
-                      <Flex align="center" gap="3">
-                        <Box p="2" style={{ backgroundColor: `var(--${typeInfo.color}-3)`, borderRadius: 'var(--radius-2)' }}>
-                          {React.cloneElement(typeInfo.icon as React.ReactElement, { color: `var(--${typeInfo.color}-11)` })}
-                        </Box>
-                        <Box>
-                          <Text size="2" weight="bold" as="div">{file.name}</Text>
-                          <Text size="1" style={{ color: '#111827' }}>{typeInfo.label}</Text>
-                        </Box>
-                      </Flex>
+                      <Text weight="bold" style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>{file.name}</Text>
                     </Table.Cell>
                     <Table.Cell>
-                      <Badge color={typeInfo.color} variant="soft" radius="full" style={{ textTransform: 'uppercase', fontWeight: 800 }}>
+                      <span style={{ 
+                        color: typeInfo.color === 'red' ? '#ef4444' : typeInfo.color === 'blue' ? '#3b82f6' : typeInfo.color === 'orange' ? '#f97316' : typeInfo.color === 'indigo' ? '#6366f1' : '#f0ad44', 
+                        fontWeight: 800, 
+                        fontSize: '10px', 
+                        padding: '3px 8px', 
+                        borderRadius: '4px', 
+                        textTransform: 'uppercase', 
+                        letterSpacing: '0.05em', 
+                        whiteSpace: 'nowrap', 
+                        border: `1px solid ${typeInfo.color === 'red' ? 'rgba(239, 68, 68, 0.2)' : typeInfo.color === 'blue' ? 'rgba(59, 130, 246, 0.2)' : typeInfo.color === 'orange' ? 'rgba(249, 115, 22, 0.2)' : typeInfo.color === 'indigo' ? 'rgba(99, 102, 241, 0.2)' : 'rgba(240, 173, 68, 0.2)'}`, 
+                        backgroundColor: `${typeInfo.color === 'red' ? 'rgba(239, 68, 68, 0.05)' : typeInfo.color === 'blue' ? 'rgba(59, 130, 246, 0.05)' : typeInfo.color === 'orange' ? 'rgba(249, 115, 22, 0.05)' : typeInfo.color === 'indigo' ? 'rgba(99, 102, 241, 0.05)' : 'rgba(240, 173, 68, 0.05)'}`
+                      }}>
                         {extension || 'FILE'}
-                      </Badge>
+                      </span>
                     </Table.Cell>
                     <Table.Cell>
-                      <Badge variant="surface" radius="full" style={{ color: '#111827' }}>{formatSize(file.size)}</Badge>
+                      <span style={{ 
+                        color: '#f0ad44', 
+                        fontWeight: 800, 
+                        fontSize: '10px', 
+                        padding: '3px 8px', 
+                        borderRadius: '4px', 
+                        textTransform: 'uppercase', 
+                        letterSpacing: '0.05em', 
+                        whiteSpace: 'nowrap', 
+                        border: '1px solid rgba(240, 173, 68, 0.2)', 
+                        backgroundColor: 'rgba(240, 173, 68, 0.05)' 
+                      }}>
+                        {formatSize(file.size)}
+                      </span>
                     </Table.Cell>
                     <Table.Cell>
-                      <Text size="2" style={{ color: '#111827' }}>{formatDate(file.modified)}</Text>
+                      <Text style={{ color: '#111827', fontSize: '12px' }}>{formatDate(file.modified)}</Text>
                     </Table.Cell>
-                    <Table.Cell>
+                    <Table.Cell onClick={(e) => e.stopPropagation()}>
                       <Flex gap="2" justify="center" align="center">
-                        <AlertDialog.Root>
-                          <AlertDialog.Trigger>
-                            <Button size="1" variant="ghost" color="red"><Trash2 size={14} /> Remove</Button>
-                          </AlertDialog.Trigger>
-                          <AlertDialog.Content maxWidth="450px" style={{ border: '1px solid #e5e7eb', borderRadius: '12px', backgroundColor: '#ffffff', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.12)' }}>
-                            <AlertDialog.Title style={{ fontWeight: 800, color: '#111827' }}>Delete Document</AlertDialog.Title>
-                            <AlertDialog.Description size="2" style={{ color: '#111827' }}>
-                              Are you sure? This document will be permanently removed from the agent's memory and knowledge base indexing.
-                            </AlertDialog.Description>
-                            <Flex gap="3" mt="4" justify="end" align="center">
-                              <AlertDialog.Cancel><Button variant="soft" color="amber"><X size={16}/> Cancel</Button></AlertDialog.Cancel>
-                              <AlertDialog.Action>
-                                <Button variant="solid" color="red" onClick={() => handleDelete(file.name)}><Trash2 size={16}/> Delete</Button>
-                              </AlertDialog.Action>
-                            </Flex>
-                          </AlertDialog.Content>
-                        </AlertDialog.Root>
+                        <Popover.Root>
+                          <Popover.Trigger onClick={(e) => e.stopPropagation()}>
+                            <IconButton variant="ghost" color="gray" style={{ cursor: 'pointer' }}>
+                              <MoreVertical size={16} />
+                            </IconButton>
+                          </Popover.Trigger>
+                          <Popover.Content size="1" style={{ padding: '4px' }} onClick={(e) => e.stopPropagation()}>
+                            <AlertDialog.Root>
+                              <AlertDialog.Trigger onClick={(e) => e.stopPropagation()}>
+                                <Button variant="ghost" color="red" size="1" style={{ width: '100%', justifyContent: 'start', cursor: 'pointer' }}>
+                                  <Trash2 size={14} style={{ marginRight: '6px' }} /> Remove Document
+                                </Button>
+                              </AlertDialog.Trigger>
+                              <AlertDialog.Content maxWidth="450px" style={{ border: '1px solid #e5e7eb', borderRadius: '12px', backgroundColor: '#ffffff', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.12)' }}>
+                                <AlertDialog.Title style={{ fontWeight: 800, color: '#111827' }}>Delete Document</AlertDialog.Title>
+                                <AlertDialog.Description size="2" style={{ color: '#111827' }}>
+                                  Are you sure? This document will be permanently removed from the agent's memory and knowledge base indexing.
+                                </AlertDialog.Description>
+                                <Flex gap="3" mt="4" justify="end" align="center">
+                                  <AlertDialog.Cancel onClick={(e) => e.stopPropagation()}>
+                                    <Button variant="outline" color="gray" style={{ cursor: 'pointer' }}><X size={16}/> Cancel</Button>
+                                  </AlertDialog.Cancel>
+                                  <AlertDialog.Action onClick={(e) => e.stopPropagation()}>
+                                    <Button variant="solid" color="red" style={{ cursor: 'pointer' }} onClick={(e) => { e.stopPropagation(); handleDelete(file.name); }}><Trash2 size={16}/> Delete</Button>
+                                  </AlertDialog.Action>
+                                </Flex>
+                              </AlertDialog.Content>
+                            </AlertDialog.Root>
+                          </Popover.Content>
+                        </Popover.Root>
                       </Flex>
                     </Table.Cell>
                   </Table.Row>
@@ -323,7 +354,7 @@ export const KnowledgeBaseManager: React.FC = () => {
             <AlertCircle size={14} /> 
             Vector embeddings are updated automatically on every upload.
           </Text>
-          <Button variant="soft" color="amber" size="1" onClick={handleReindex} disabled={isReindexing}>
+          <Button variant="solid" style={{ backgroundColor: '#f0ad44', color: '#161617', fontWeight: 600, cursor: 'pointer' }} size="1" onClick={handleReindex} disabled={isReindexing}>
             <RefreshCw size={14} className={isReindexing ? 'animate-spin' : ''} /> Force Global Re-Index
           </Button>
         </Flex>
