@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import * as LiveKitSDK from 'livekit-client';
 import { Box } from '@radix-ui/themes';
 

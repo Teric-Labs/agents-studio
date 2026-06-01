@@ -27,7 +27,7 @@ export default defineConfig(({ mode }) => {
           secure: false,
           rewrite: (path) => path.replace(/^\/phosai-api/, ''),
           configure: (proxy, _options) => {
-            proxy.on('proxyReq', (proxyReq, req, _res) => {
+            proxy.on('proxyReq', (proxyReq, _req, _res) => {
               proxyReq.setHeader('ngrok-skip-browser-warning', 'true');
             });
           }

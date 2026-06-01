@@ -18,6 +18,7 @@ import { math } from "@streamdown/math";
 import { mermaid } from "@streamdown/mermaid";
 import type { UIMessage } from "ai";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import { StickToBottom } from "use-stick-to-bottom";
 import type { ComponentProps, HTMLAttributes, ReactElement } from "react";
 import {
   createContext,
@@ -147,6 +148,7 @@ export const MessageBranch = ({
   defaultBranch = 0,
   onBranchChange,
   className,
+  children,
   ...props
 }: MessageBranchProps) => {
   const [currentBranch, setCurrentBranch] = useState(defaultBranch);
@@ -192,7 +194,9 @@ export const MessageBranch = ({
         resize="smooth"
         role="log"
         {...props}
-      />
+      >
+        {children}
+      </StickToBottom>
     </MessageBranchContext.Provider>
   );
 };

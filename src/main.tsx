@@ -1,5 +1,6 @@
 import "@radix-ui/themes/styles.css";
 import './index.css';
+import ErrorBoundary from './components/ErrorBoundary';
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import AgentBuilder from './pages/AgentBuilder'
@@ -18,7 +19,13 @@ function App() {
     return <div>Loading...</div>;
   }
 
-  return user ? <AgentBuilder /> : <LandingPage />;
+  return user ? (
+    <ErrorBoundary fallback={<div>Something went wrong.</div>}>
+      <AgentBuilder />
+    </ErrorBoundary>
+  ) : (
+    <LandingPage />
+  );
 }
 
 createRoot(document.getElementById('root')!).render(

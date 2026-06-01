@@ -1,14 +1,14 @@
 import { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import * as LiveKitSDK from 'livekit-client';
-import { Activity, BarChart, Bell, Book, Bot, Brain, Briefcase, Building2, Calendar, Car, Check, CheckCircle, CheckSquare, ChevronLeft, ChevronRight, Code, Copy, Eye, EyeOff, ExternalLink, Globe, GraduationCap, Hammer, Headphones, HeartHandshake, History, Key, LogOut, Menu, MessageSquare, MessageSquareOff, Mic, MoreVertical, Music, Palette, Phone, PhoneOff, Plane, Play, Plus, RefreshCw, Save, Scale, Search, Settings, ShoppingCart, SlidersHorizontal, Stethoscope, Trash2, Truck, Undo, User, UserCheck, UtensilsCrossed, Volume2, Workflow, X } from 'lucide-react';
+import { Activity, BarChart, Bell, Book, Bot, Brain, Briefcase, Building2, Calendar, Car, Check, CheckCircle, CheckSquare, ChevronLeft, ChevronRight, Code, Copy, Eye, EyeOff, ExternalLink, Globe, GraduationCap, Hammer, Headphones, HeartHandshake, History, Key, LogOut, Menu, MessageSquare, MessageSquareOff, Mic, MoreVertical, Music, Palette, Phone, PhoneOff, Plane, Play, Plus, RefreshCw, Save, Scale, Search, Settings, ShoppingCart, Stethoscope, Trash2, Truck, Undo, User, UserCheck, UtensilsCrossed, Workflow, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import GmailIcon from '../assets/gmail.svg';
 import GoogleCalendarIcon from '../assets/googlecalendar.svg';
 import GoogleSheetsIcon from '../assets/googlesheets.svg';
 import phosaiLogo from '../assets/phosai_logo.png';
 
-import { Flex, Text, Button, Box, Grid, Card, Badge, Tabs, TextField, TextArea, Switch, Select, Slider, Heading, Separator, Tooltip, Table, Dialog, IconButton, SegmentedControl, AlertDialog, VisuallyHidden, Popover, ScrollArea } from '@radix-ui/themes';
+import { Flex, Text, Button, Box, Grid, Card, Badge, Tabs, TextField, TextArea, Switch, Select, Slider, Heading, Separator, Tooltip, Table, IconButton, SegmentedControl, AlertDialog, Popover, ScrollArea } from '@radix-ui/themes';
 import { AgentAudioVisualizerBar } from '../AgentAudioVisualizerBar';
 import type { VisualizerState } from '../AgentAudioVisualizerBar';
 import { AgentAudioVisualizerGrid } from '../components/agents-ui/agent-audio-visualizer-grid';
@@ -18,7 +18,6 @@ import { AgentAudioVisualizerAura } from '../components/agents-ui/agent-audio-vi
 import { AgentWorkflowBuilder } from '../AgentWorkflowBuilder';
 import { KnowledgeBaseManager } from '../components/KnowledgeBaseManager';
 import { AgentChatTranscript } from '../components/agents-ui/agent-chat-transcript';
-import { AgentChatIndicator } from '../components/agents-ui/agent-chat-indicator';
 import * as Toast from '@radix-ui/react-toast';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
@@ -147,79 +146,6 @@ const VoiceCard = ({ voice, playingVoiceId, previewAudioUrl, onPlayToggle, theme
 					{voice.description}
 				</Text>
 			</Flex>
-
-			{/* Recordings panel */}
-			<Box style={{ marginTop: 12, marginBottom: 12 }}>
-				<Flex align="center" justify="between">
-					<Text size="2" weight="bold">Recordings</Text>
-					<Flex gap="2">
-						<Button variant="outline" size="1" onClick={loadRecordings} loading={isLoadingRecordings}>Refresh Recordings</Button>
-					</Flex>
-				</Flex>
-				{previewAudioUrl && (
-					<Box style={{ marginTop: 8 }}>
-						<audio ref={el => { audioElementRef.current = el; if (el && previewAudioUrl) el.src = previewAudioUrl; }} controls style={{ width: '100%' }} />
-					</Box>
-				)}
-				{recordings.length === 0 ? (
-					<Text size="1" style={{ color: '#6b7280', marginTop: 8 }}>No recordings found for this agent.</Text>
-				) : (
-					<Box style={{ marginTop: 8 }}>
-						{recordings.map(r => {
-							const sizeLabel = r.file_size_bytes ? (r.file_size_bytes > 1024 * 1024 ? `${(r.file_size_bytes / (1024 * 1024)).toFixed(2)} MB` : `${(r.file_size_bytes / 1024).toFixed(1)} KB`) : '';
-							const durLabel = r.duration_seconds ? `${Math.round(r.duration_seconds)}s` : '';
-							return (
-								<Flex key={r.id || r.recording_id} align="center" justify="between" style={{ padding: '8px 12px', borderBottom: '1px solid #f1f5f9' }}>
-									<Flex direction="column" style={{ minWidth: 0 }}>
-										<Text style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{r.file_path || r.storage_path || r.recording_id}</Text>
-										<Text size="1" style={{ color: '#6b7280' }}>{r.created_at ? new Date(r.created_at).toLocaleString() : ''} {sizeLabel ? `• ${sizeLabel}` : ''} {durLabel ? `• ${durLabel}` : ''}</Text>
-									</Flex>
-									<Flex gap="2">
-										{(r.status === 'completed' || r.status === 'processed') ? (
-											<>
-												<Button size="1" variant="solid" onClick={async (e) => {
-													e.stopPropagation();
-													try {
-														let url = r.download_url;
-														if (!url) {
-															const res = await axios.get(`${API_BASE}/agents/${currentAgent?.id}/recordings/${r.id || r.recording_id}/download-url`);
-															url = res.data.download_url;
-														}
-														if (url) {
-															// play
-															setPreviewAudioUrl(url);
-															if (audioElementRef.current) {
-																audioElementRef.current.src = url;
-																audioElementRef.current.play().catch(() => {});
-															}
-														}
-												} catch (err) { console.error('Failed to get download url', err); }
-											}}>Play</Button>
-												<Button size="1" variant="outline" onClick={async (e) => {
-													e.stopPropagation();
-													try {
-														let url = r.download_url;
-														if (!url) {
-															const res = await axios.get(`${API_BASE}/agents/${currentAgent?.id}/recordings/${r.id || r.recording_id}/download-url`);
-															url = res.data.download_url;
-														}
-														if (url) {
-															navigator.clipboard?.writeText(url).then(() => showToast('Copied', 'Download link copied to clipboard')).catch(() => {});
-														}
-												} catch (err) { console.error('Failed to get download url', err); }
-											}}>Copy Link</Button>
-												<Button size="1" variant="soft" onClick={() => { setPreviewAudioUrl(null); if (audioElementRef.current) { audioElementRef.current.pause(); audioElementRef.current.currentTime = 0; audioElementRef.current.src = ''; } }}>Stop</Button>
-											</>
-										) : (
-											<Button size="1" variant="soft" disabled>Not ready</Button>
-										)}
-									</Flex>
-								</Flex>
-							);
-							})}
-					</Box>
-				)}
-			</Box>
 		</Card>
 	);
 };
@@ -307,7 +233,7 @@ export default function App() {
 	const [logTypeFilter, setLogTypeFilter] = useState('all');
 	const [logPage, setLogPage] = useState(1);
 	const [recordings, setRecordings] = useState<any[]>([]);
-	const [isRecording, setIsRecording] = useState(false);
+	const [_isRecording, setIsRecording] = useState(false);
 	const [recordingEgressId, setRecordingEgressId] = useState<string | null>(null);
 	const [isLoadingRecordings, setIsLoadingRecordings] = useState(false);
 	const [selectedLogForTranscript, setSelectedLogForTranscript] = useState<any>(null);
@@ -347,7 +273,7 @@ export default function App() {
 	const paginatedWorkflows = filteredWorkflows.slice((workflowPage - 1) * WORKFLOW_PAGE_SIZE, workflowPage * WORKFLOW_PAGE_SIZE);
 
 	// Transform our transcript format to match official LiveKit component format
-	const transformTranscripts = (transcripts: any[]) => {
+	const transformTranscripts = (transcripts: any[]): any => {
 		return transcripts.map(t => ({
 			id: t.id,
 			timestamp: t.timestamp || Date.now(),
@@ -365,10 +291,10 @@ export default function App() {
 			case 'grid':
 				return (
 					<AgentAudioVisualizerGrid
-						audioTrack={audioTrack}
+						audioTrack={audioTrack || undefined}
 						state={visualizerState}
 						size={size}
-						color={color}
+						color={color as `#${string}`}
 						rowCount={15}
 						columnCount={15}
 						interval={100}
@@ -378,20 +304,20 @@ export default function App() {
 			case 'radial':
 				return (
 					<AgentAudioVisualizerRadial
-						audioTrack={audioTrack}
+						audioTrack={audioTrack || undefined}
 						state={visualizerState}
 						size={size}
-						color={color}
+						color={color as `#${string}`}
 						barCount={12}
 					/>
 				);
 			case 'wave':
 				return (
 					<AgentAudioVisualizerWave
-						audioTrack={audioTrack}
+						audioTrack={audioTrack || undefined}
 						state={visualizerState}
 						size={size}
-						color={color}
+						color={color as `#${string}`}
 						lineWidth={2}
 						blur={0.1}
 						colorShift={0.3}
@@ -400,10 +326,10 @@ export default function App() {
 			case 'aura':
 				return (
 					<AgentAudioVisualizerAura
-						audioTrack={audioTrack}
+						audioTrack={audioTrack || undefined}
 						state={visualizerState}
 						size={size}
-						color={color}
+						color={color as `#${string}`}
 						colorShift={0.1}
 						themeMode="light"
 					/>
@@ -414,9 +340,8 @@ export default function App() {
 					<AgentAudioVisualizerBar
 						audioTrack={audioTrack}
 						state={visualizerState}
-						size={size}
 						color={color}
-						barCount={5}
+						theme={vizType === 'bars' ? 'bars' : 'circle'}
 					/>
 				);
 		}
@@ -450,7 +375,7 @@ export default function App() {
 	const [toolsEnabled, setToolsEnabled] = useState<boolean>(false);
 	const [selectedToolCategories, setSelectedToolCategories] = useState<string[]>([]);
 	const [googleConnected, setGoogleConnected] = useState<boolean>(false);
-	const [googleScopes, setGoogleScopes] = useState<string[]>([]);
+	const [_googleScopes, setGoogleScopes] = useState<string[]>([]);
 	const [webSearchEnabled, setWebSearchEnabled] = useState<boolean>(false);
 	const [tavilyApiKey, setTavilyApiKey] = useState<string>('');
 	const [showApiKey, setShowApiKey] = useState<boolean>(false);
@@ -830,10 +755,7 @@ export default function App() {
 		}
 	};
 
-	const getPhosAiVoiceDetails = (voice: any) => {
-		// Logic moved to backend. The backend now returns the full voice object with name, flag, tags, gender, and description.
-		return voice;
-	};
+
 
 	useEffect(() => {
 		if (activeView === 'voices' && phosAiVoices.length === 0) {
@@ -1314,6 +1236,7 @@ export default function App() {
 			} finally {
 				setIsConnecting(false);
 			}
+	};
 
 
 	const toggleChatSession = async (targetAgentOverride?: any) => {
@@ -2068,10 +1991,83 @@ export default function App() {
 								</Flex>
 
 								{/* Table */}
-								<Box style={{ marginBottom: 16, padding: '16px', borderRadius: '12px', border: '1px solid #e5e7eb', backgroundColor: '#ffffff' }}>
-									<Text size="2" weight="bold">Recordings</Text>
-									<Text size="1" style={{ color: '#6b7280', marginTop: 8 }}>Recordings will appear here when an active agent is selected.</Text>
-								</Box>
+								{!currentAgent ? (
+									<Box style={{ marginBottom: 16, padding: '16px', borderRadius: '12px', border: '1px solid #e5e7eb', backgroundColor: '#ffffff' }}>
+										<Text size="2" weight="bold">Recordings</Text>
+										<Text size="1" style={{ color: '#6b7280', marginTop: 8 }}>Recordings will appear here when an active agent is selected.</Text>
+									</Box>
+								) : (
+									<Box style={{ marginBottom: 16, padding: '16px', borderRadius: '12px', border: '1px solid #e5e7eb', backgroundColor: '#ffffff' }}>
+										<Flex align="center" justify="between">
+											<Text size="2" weight="bold">Recordings ({currentAgent.name || currentAgent.config?.name})</Text>
+											<Flex gap="2">
+												<Button variant="outline" size="1" onClick={loadRecordings} loading={isLoadingRecordings}>Refresh Recordings</Button>
+											</Flex>
+										</Flex>
+										{previewAudioUrl && (
+											<Box style={{ marginTop: 8 }}>
+												<audio ref={el => { audioElementRef.current = el; if (el && previewAudioUrl) el.src = previewAudioUrl; }} controls style={{ width: '100%' }} />
+											</Box>
+										)}
+										{recordings.length === 0 ? (
+											<Text size="1" style={{ color: '#6b7280', marginTop: 8 }}>No recordings found for this agent.</Text>
+										) : (
+											<Box style={{ marginTop: 8 }}>
+												{recordings.map(r => {
+													const sizeLabel = r.file_size_bytes ? (r.file_size_bytes > 1024 * 1024 ? `${(r.file_size_bytes / (1024 * 1024)).toFixed(2)} MB` : `${(r.file_size_bytes / 1024).toFixed(1)} KB`) : '';
+													const durLabel = r.duration_seconds ? `${Math.round(r.duration_seconds)}s` : '';
+													return (
+														<Flex key={r.id || r.recording_id} align="center" justify="between" style={{ padding: '8px 12px', borderBottom: '1px solid #f1f5f9' }}>
+															<Flex direction="column" style={{ minWidth: 0 }}>
+																<Text style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{r.file_path || r.storage_path || r.recording_id}</Text>
+																<Text size="1" style={{ color: '#6b7280' }}>{r.created_at ? new Date(r.created_at).toLocaleString() : ''} {sizeLabel ? `• ${sizeLabel}` : ''} {durLabel ? `• ${durLabel}` : ''}</Text>
+															</Flex>
+															<Flex gap="2">
+																{(r.status === 'completed' || r.status === 'processed') ? (
+																	<>
+																		<Button size="1" variant="solid" onClick={async (e) => {
+																			e.stopPropagation();
+																			try {
+																				let url = r.download_url;
+																				if (!url) {
+																					const res = await axios.get(`${API_BASE}/agents/${currentAgent?.id}/recordings/${r.id || r.recording_id}/download-url`);
+																					url = res.data.download_url;
+																				}
+																				if (url) {
+																					setPreviewAudioUrl(url);
+																					if (audioElementRef.current) {
+																						audioElementRef.current.src = url;
+																						audioElementRef.current.play().catch(() => {});
+																					}
+																				}
+																			} catch (err) { console.error('Failed to get download url', err); }
+																		}}>Play</Button>
+																		<Button size="1" variant="outline" onClick={async (e) => {
+																			e.stopPropagation();
+																			try {
+																				let url = r.download_url;
+																				if (!url) {
+																					const res = await axios.get(`${API_BASE}/agents/${currentAgent?.id}/recordings/${r.id || r.recording_id}/download-url`);
+																					url = res.data.download_url;
+																				}
+																				if (url) {
+																					navigator.clipboard?.writeText(url).then(() => showToast('Copied', 'Download link copied to clipboard')).catch(() => {});
+																				}
+																			} catch (err) { console.error('Failed to get download url', err); }
+																		}}>Copy Link</Button>
+																		<Button size="1" variant="soft" onClick={() => { setPreviewAudioUrl(null); if (audioElementRef.current) { audioElementRef.current.pause(); audioElementRef.current.currentTime = 0; audioElementRef.current.src = ''; } }}>Stop</Button>
+																	</>
+																) : (
+																	<Button size="1" variant="soft" disabled>Not ready</Button>
+																)}
+															</Flex>
+														</Flex>
+													);
+												})}
+											</Box>
+										)}
+									</Box>
+								)}
 								<Box style={{ overflowX: 'auto' }}>
 									<Table.Root variant="ghost" size="1">
 										<Table.Header>
@@ -3366,7 +3362,7 @@ export default function App() {
 																<Text as="label" size="2" weight="bold" mb="3" style={{ display: 'block', color: '#111827' }}>
 																	Visualizer Type
 																</Text>
-																<SegmentedControl.Root value={visualizerType} onValueChange={v => setVisualizerType(v as any)} size="2" color="amber">
+																<SegmentedControl.Root value={visualizerType} onValueChange={v => setVisualizerType(v as any)} size="2">
 																	<SegmentedControl.Item value="bar">Bar</SegmentedControl.Item>
 																	<SegmentedControl.Item value="grid">Grid</SegmentedControl.Item>
 																	<SegmentedControl.Item value="radial">Radial</SegmentedControl.Item>
@@ -3617,6 +3613,4 @@ export default function App() {
 			</Box>
 		</Toast.Provider>
 	);
-}
-
 }
