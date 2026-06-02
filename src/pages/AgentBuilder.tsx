@@ -235,8 +235,6 @@ export default function App() {
 	const [logTypeFilter, setLogTypeFilter] = useState('all');
 	const [logPage, setLogPage] = useState(1);
 	const [recordings, setRecordings] = useState<any[]>([]);
-	const [_isRecording, setIsRecording] = useState(false);
-	const [recordingEgressId, setRecordingEgressId] = useState<string | null>(null);
 	const [isLoadingRecordings, setIsLoadingRecordings] = useState(false);
 	const [selectedLogForTranscript, setSelectedLogForTranscript] = useState<any>(null);
 
@@ -1022,43 +1020,6 @@ export default function App() {
 
 	const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
 
-	const startRecording = async (targetAgent: any, roomName?: string) => {
-		const agentKey = getAgentRouteKey(targetAgent);
-		if (!agentKey) return;
-		try {
-			const res = await axios.post(`${API_BASE}/agents/${encodeURIComponent(agentKey)}/recordings/start`, {
-				room_name: roomName
-			});
-			const egressId = res.data?.egress_id;
-			if (egressId) {
-				setRecordingEgressId(egressId);
-				setIsRecording(true);
-			}
-			loadRecordings();
-			showToast('Recording started', 'Session recording is now capturing.');
-		} catch (error) {
-			console.error('Failed to start recording', error);
-			showToast('Recording error', 'Could not start the recording.');
-		}
-	};
-
-	const stopRecording = async (targetAgent?: any) => {
-		const agentKey = getAgentRouteKey(targetAgent || currentAgent);
-		if (!recordingEgressId || !agentKey) return;
-		try {
-			await axios.post(`${API_BASE}/agents/${encodeURIComponent(agentKey)}/recordings/stop`, {
-				egress_id: recordingEgressId
-			});
-			setIsRecording(false);
-			setRecordingEgressId(null);
-			loadRecordings();
-			showToast('Recording stopped', 'The voice session recording has been stopped.');
-		} catch (error) {
-			console.error('Failed to stop recording', error);
-			showToast('Recording error', 'Could not stop the recording.');
-		}
-	};
-
 	const toggleCall = async (targetAgentOverride?: any) => {
 		const targetAgent = targetAgentOverride || currentAgent;
 		if (!targetAgent) return;
@@ -1140,12 +1101,8 @@ export default function App() {
 				setIsCallActive(true);
 				setIsConnecting(false);
 				setAgentState('listening');
-				await startRecording(targetAgent, room.name);
 			});
 			room.on(LiveKitSDK.RoomEvent.Disconnected, async () => {
-				if (recordingEgressId) {
-					await stopRecording(targetAgent);
-				}
 				setIsCallActive(false);
 				setAgentAudioTrack(null);
 				setAgentState('disconnected');
@@ -1169,8 +1126,9 @@ export default function App() {
 							summary: summaryRes.data.summary
 						});
 
-						// 3. Refresh logs
+						// 3. Refresh logs and recordings (worker saves recording server-side)
 						loadLogs();
+						loadRecordings();
 					} catch (err) {
 						console.error('Failed to summarize or save session', err);
 						// Fallback save without summary
@@ -1181,6 +1139,7 @@ export default function App() {
 						}).catch(console.error);
 					}
 				}
+				loadRecordings();
 			});
 			room.on(LiveKitSDK.RoomEvent.DataReceived, (payload, _participant) => {
 				const decoder = new TextDecoder();
