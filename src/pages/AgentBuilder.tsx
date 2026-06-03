@@ -365,6 +365,27 @@ export default function App() {
 		if (activeView === 'logs') loadLogs();
 	}, [activeView]);
 
+	// Fetch recordings for the selected log when the modal opens (works even if currentAgent is not set)
+	useEffect(() => {
+		if (isTranscriptModalOpen && selectedLogForTranscript?.agent_id) {
+			const agentId = selectedLogForTranscript.agent_id;
+			// Always fetch fresh recordings for this agent from the API
+			axios.get(`${API_BASE}/agents/${agentId}/recordings`)
+				.then(res => {
+					const fetchedRecordings = res.data.recordings || [];
+					if (fetchedRecordings.length > 0) {
+						// Merge with existing recordings (dedup by id)
+						setRecordings(prev => {
+							const existingIds = new Set(prev.map((r: any) => r.id || r.recording_id));
+							const newRecordings = fetchedRecordings.filter((r: any) => !existingIds.has(r.id || r.recording_id));
+							return [...prev, ...newRecordings];
+						});
+					}
+				})
+				.catch(err => console.error('Failed to load recordings for agent', err));
+		}
+	}, [isTranscriptModalOpen, selectedLogForTranscript]);
+
 	// Auto-load recording download URL when transcript modal opens
 	useEffect(() => {
 		if (isTranscriptModalOpen && selectedLogForTranscript) {
@@ -384,7 +405,7 @@ export default function App() {
 					.catch(err => console.error('Failed to load recording URL', err));
 			}
 		}
-	}, [isTranscriptModalOpen, selectedLogForTranscript]);
+	}, [isTranscriptModalOpen, selectedLogForTranscript, recordings]);
 
 	// New Agent Creation Flow State
 	const [creationStep, setCreationStep] = useState<'CATEGORY' | 'PERSONAL_USE_CASE' | 'BUSINESS_INDUSTRY' | 'BUSINESS_USE_CASE' | 'CONFIG'>('CATEGORY');
