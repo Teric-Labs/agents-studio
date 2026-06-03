@@ -242,6 +242,9 @@ export default function App() {
 		return agent?.id || agent?.config?.name || agent?.name;
 	};
 	const [isTranscriptModalOpen, setIsTranscriptModalOpen] = useState(false);
+	const [selectedSessionRecording, setSelectedSessionRecording] = useState<any>(null);
+	const [sessionRecordingUrl, setSessionRecordingUrl] = useState<string | null>(null);
+	const [isLoadingSessionRecording, setIsLoadingSessionRecording] = useState(false);
 	const [isSummaryExpanded, setIsSummaryExpanded] = useState(true);
 	const [isVoiceUIOpen, setIsVoiceUIOpen] = useState(false);
 	const LOG_PAGE_SIZE = 10;
@@ -361,6 +364,27 @@ export default function App() {
 	useEffect(() => {
 		if (activeView === 'logs') loadLogs();
 	}, [activeView]);
+
+	// Auto-load recording download URL when transcript modal opens
+	useEffect(() => {
+		if (isTranscriptModalOpen && selectedLogForTranscript) {
+			const match = recordings.find((r: any) =>
+				r.agent_id === selectedLogForTranscript.agent_id &&
+				r.status === 'completed' &&
+				r.created_at && selectedLogForTranscript.created_at &&
+				new Date(r.created_at).getTime() <= new Date(selectedLogForTranscript.created_at).getTime() + 120_000 &&
+				new Date(r.created_at).getTime() >= new Date(selectedLogForTranscript.created_at).getTime() - 300_000
+			);
+			if (match && (match.id || match.recording_id) && !match.download_url) {
+				axios.get(`${API_BASE}/agents/${selectedLogForTranscript.agent_id}/recordings/${match.id || match.recording_id}/download-url`)
+					.then(res => {
+						match.download_url = res.data.download_url;
+						setSelectedSessionRecording({ ...match });
+					})
+					.catch(err => console.error('Failed to load recording URL', err));
+			}
+		}
+	}, [isTranscriptModalOpen, selectedLogForTranscript]);
 
 	// New Agent Creation Flow State
 	const [creationStep, setCreationStep] = useState<'CATEGORY' | 'PERSONAL_USE_CASE' | 'BUSINESS_INDUSTRY' | 'BUSINESS_USE_CASE' | 'CONFIG'>('CATEGORY');
@@ -3521,8 +3545,9 @@ export default function App() {
 							<Tabs.Root defaultValue="transcription" style={{ flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc', minHeight: 0, overflow: 'hidden' }}>
 								<Box px="4" pt="3" style={{ backgroundColor: '#ffffff', borderBottom: '1px solid #e2e8f0' }}>
 									<Tabs.List size="2" color="amber">
-										<Tabs.Trigger value="transcription" style={{ paddingBottom: '10px' }}>Transcription</Tabs.Trigger>
+<Tabs.Trigger value="transcription" style={{ paddingBottom: '10px' }}>Transcription</Tabs.Trigger>
 										<Tabs.Trigger value="details" style={{ paddingBottom: '10px' }}>Details</Tabs.Trigger>
+										<Tabs.Trigger value="recording" style={{ paddingBottom: '10px' }}>Recording</Tabs.Trigger>
 									</Tabs.List>
 								</Box>
 
@@ -3561,8 +3586,82 @@ export default function App() {
 									</div>
 								</Tabs.Content>
 
-								<Tabs.Content value="details" style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
+<Tabs.Content value="details" style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
 									<Text size="2" style={{ color: '#64748b' }}>Technical details and performance metrics will appear here.</Text>
+								</Tabs.Content>
+
+								<Tabs.Content value="recording" style={{ flex: 1, overflow: 'auto', padding: '20px' }}>
+									{selectedLogForTranscript && recordings.filter((r: any) => r.agent_id === selectedLogForTranscript.agent_id && (r.created_at && selectedLogForTranscript.created_at && new Date(r.created_at).getTime() <= new Date(selectedLogForTranscript.created_at).getTime() + 120_000 && new Date(r.created_at).getTime() >= new Date(selectedLogForTranscript.created_at).getTime() - 300_000)).length > 0 ? (
+										<Flex direction="column" gap="4">
+											{recordings
+												.filter((r: any) => r.agent_id === selectedLogForTranscript.agent_id && (r.created_at && selectedLogForTranscript.created_at && new Date(r.created_at).getTime() <= new Date(selectedLogForTranscript.created_at).getTime() + 120_000 && new Date(r.created_at).getTime() >= new Date(selectedLogForTranscript.created_at).getTime() - 300_000))
+												.map((rec: any) => (
+													<Flex key={rec.id || rec.recording_id} direction="column" gap="3" style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+														<Flex align="center" justify="between">
+															<Flex align="center" gap="2">
+																<Headphones size={16} style={{ color: '#f0ad44' }} />
+																<Text size="2" weight="bold" style={{ color: '#111827' }}>
+																	Call Recording
+																</Text>
+																{rec.duration_seconds ? (
+																	<Badge color="amber" variant="soft" size="1">
+																		{Math.floor(rec.duration_seconds / 60)}:{String(Math.round(rec.duration_seconds % 60)).padStart(2, '0')}
+																	</Badge>
+																) : null}
+																{rec.status === 'completed' ? (
+																	<Badge color="green" variant="soft" size="1">Ready</Badge>
+																) : rec.status === 'failed' ? (
+																	<Badge color="red" variant="soft" size="1">Failed</Badge>
+																) : (
+																	<Badge color="yellow" variant="soft" size="1">{rec.status || 'pending'}</Badge>
+																)}
+															</Flex>
+														</Flex>
+														{(rec.status === 'completed' || rec.status === 'processed') ? (
+															<Box>
+																<audio
+																	src={rec.download_url || ''}
+																	controls
+																	style={{ width: '100%', height: '40px', borderRadius: '8px' }}
+																	preload="metadata"
+																/>
+																{!rec.download_url && (
+																	<Button
+																		size="1"
+																		variant="outline"
+																		onClick={async () => {
+																			try {
+																				const res = await axios.get(`${API_BASE}/agents/${selectedLogForTranscript.agent_id}/recordings/${rec.id || rec.recording_id}/download-url`);
+																				rec.download_url = res.data.download_url;
+																				const audioEl = document.querySelector(`audio[src="${rec.download_url}"]`) as HTMLAudioElement;
+																				if (audioEl) audioEl.src = res.data.download_url;
+																			} catch (err) { console.error('Failed to get download url', err); }
+																		}}
+																		style={{ marginTop: '6px' }}
+																	>
+																		<RefreshCw size={12} /> Load Audio
+																	</Button>
+																)}
+															</Box>
+														) : rec.status === 'failed' ? (
+															<Text size="1" style={{ color: '#dc2626' }}>Recording failed — file may not have uploaded to storage.</Text>
+														) : (
+															<Flex align="center" gap="2">
+																<RefreshCw size={14} className="animate-spin" style={{ color: '#94a3b8' }} />
+																<Text size="1" style={{ color: '#64748b' }}>Recording is processing...</Text>
+															</Flex>
+														)}
+													</Flex>
+												))
+											}
+										</Flex>
+									) : (
+										<Flex direction="column" align="center" justify="center" style={{ height: '200px', opacity: 0.5 }}>
+											<Headphones size={40} color="#111827" style={{ marginBottom: '12px' }} />
+											<Text size="2" weight="bold" style={{ color: '#111827' }}>No Recording Available</Text>
+											<Text size="1" style={{ color: '#64748b', marginTop: '4px' }}>This session did not have a voice recording attached.</Text>
+										</Flex>
+									)}
 								</Tabs.Content>
 							</Tabs.Root>
 						</div>
