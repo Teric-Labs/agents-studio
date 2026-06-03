@@ -392,9 +392,10 @@ export default function App() {
 			const match = recordings.find((r: any) =>
 				r.agent_id === selectedLogForTranscript.agent_id &&
 				r.status === 'completed' &&
-				r.created_at && selectedLogForTranscript.created_at &&
+				(r.session_id === selectedLogForTranscript.session_id ||
+				(r.created_at && selectedLogForTranscript.created_at &&
 				new Date(r.created_at).getTime() <= new Date(selectedLogForTranscript.created_at).getTime() + 120_000 &&
-				new Date(r.created_at).getTime() >= new Date(selectedLogForTranscript.created_at).getTime() - 300_000
+				new Date(r.created_at).getTime() >= new Date(selectedLogForTranscript.created_at).getTime() - 300_000))
 			);
 			if (match && (match.id || match.recording_id) && !match.download_url) {
 				axios.get(`${API_BASE}/agents/${selectedLogForTranscript.agent_id}/recordings/${match.id || match.recording_id}/download-url`)
@@ -1994,12 +1995,7 @@ export default function App() {
 								</Flex>
 
 								{/* Table */}
-								{!currentAgent ? (
-									<Box style={{ marginBottom: 16, padding: '16px', borderRadius: '12px', border: '1px solid #e5e7eb', backgroundColor: '#ffffff' }}>
-										<Text size="2" weight="bold">Recordings</Text>
-										<Text size="1" style={{ color: '#6b7280', marginTop: 8 }}>Recordings will appear here when an active agent is selected.</Text>
-									</Box>
-								) : (
+								{currentAgent && (
 									<Box style={{ marginBottom: 16, padding: '16px', borderRadius: '12px', border: '1px solid #e5e7eb', backgroundColor: '#ffffff' }}>
 										<Flex align="center" justify="between">
 											<Text size="2" weight="bold">Recordings ({currentAgent.name || currentAgent.config?.name})</Text>
@@ -3607,15 +3603,108 @@ export default function App() {
 									</div>
 								</Tabs.Content>
 
-<Tabs.Content value="details" style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
-									<Text size="2" style={{ color: '#64748b' }}>Technical details and performance metrics will appear here.</Text>
+								<Tabs.Content value="details" style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+									{selectedLogForTranscript && (() => {
+										const backendMetrics = selectedLogForTranscript.metrics || {};
+										const sessionStatus = backendMetrics.session_status || 'Successful';
+										const sentiment = backendMetrics.sentiment || 'Neutral';
+										const supportType = backendMetrics.support_type || 'Inquiry';
+										const durationLabel = backendMetrics.duration || 'N/A';
+										const channelType = backendMetrics.channel_type || 'Web Call';
+
+										return (
+											<Flex direction="column" gap="4">
+												<Text size="3" weight="bold" style={{ color: '#111827', marginBottom: '8px' }}>Session Insights</Text>
+												
+												<div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+													{/* Session Status */}
+													<Card style={{ padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+														<Flex direction="column" gap="2">
+															<Flex align="center" gap="2">
+																<div style={{ padding: '6px', borderRadius: '6px', backgroundColor: sessionStatus === 'Successful' ? '#ecfdf5' : '#fef2f2', color: sessionStatus === 'Successful' ? '#059669' : '#dc2626', display: 'flex', alignItems: 'center' }}>
+																	<CheckCircle size={16} />
+																</div>
+																<Text size="1" weight="bold" style={{ color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Session Status</Text>
+															</Flex>
+															<Text size="4" weight="bold" style={{ color: sessionStatus === 'Successful' ? '#059669' : '#dc2626', marginTop: '4px' }}>
+																{sessionStatus}
+															</Text>
+														</Flex>
+													</Card>
+
+													{/* User Sentiment */}
+													<Card style={{ padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+														<Flex direction="column" gap="2">
+															<Flex align="center" gap="2">
+																<div style={{ padding: '6px', borderRadius: '6px', backgroundColor: sentiment === 'Positive' ? '#eff6ff' : (sentiment === 'Negative' ? '#fff7ed' : '#f3f4f6'), color: sentiment === 'Positive' ? '#2563eb' : (sentiment === 'Negative' ? '#ea580c' : '#4b5563'), display: 'flex', alignItems: 'center' }}>
+																	<Brain size={16} />
+																</div>
+																<Text size="1" weight="bold" style={{ color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>User Sentiment</Text>
+															</Flex>
+															<Text size="4" weight="bold" style={{ 
+																color: sentiment === 'Positive' ? '#2563eb' : (sentiment === 'Negative' ? '#ea580c' : '#4b5563'),
+																marginTop: '4px' 
+															}}>
+																{sentiment}
+															</Text>
+														</Flex>
+													</Card>
+
+													{/* Support Type */}
+													<Card style={{ padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+														<Flex direction="column" gap="2">
+															<Flex align="center" gap="2">
+																<div style={{ padding: '6px', borderRadius: '6px', backgroundColor: '#fef3c7', color: '#d97706', display: 'flex', alignItems: 'center' }}>
+																	{supportType === 'book_appointment' ? <Calendar size={16} /> : <MessageSquare size={16} />}
+																</div>
+																<Text size="1" weight="bold" style={{ color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Support Type</Text>
+															</Flex>
+															<Text size="4" weight="bold" style={{ color: '#111827', marginTop: '4px' }}>
+																{supportType === 'book_appointment' ? 'Book Appointment' : 'Inquiry'}
+															</Text>
+														</Flex>
+													</Card>
+
+													{/* Duration */}
+													<Card style={{ padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+														<Flex direction="column" gap="2">
+															<Flex align="center" gap="2">
+																<div style={{ padding: '6px', borderRadius: '6px', backgroundColor: '#faf5ff', color: '#7c3aed', display: 'flex', alignItems: 'center' }}>
+																	<History size={16} />
+																</div>
+																<Text size="1" weight="bold" style={{ color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Duration</Text>
+															</Flex>
+															<Text size="4" weight="bold" style={{ color: '#111827', marginTop: '4px' }}>
+																{durationLabel}
+															</Text>
+														</Flex>
+													</Card>
+
+													{/* Channel Type */}
+													<Card style={{ padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', backgroundColor: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+														<Flex direction="column" gap="2">
+															<Flex align="center" gap="2">
+																<div style={{ padding: '6px', borderRadius: '6px', backgroundColor: '#f4f4f5', color: '#71717a', display: 'flex', alignItems: 'center' }}>
+																	{channelType === 'Phone Call' ? <Phone size={16} /> : <Globe size={16} />}
+																</div>
+																<Text size="1" weight="bold" style={{ color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Channel Type</Text>
+															</Flex>
+															<Text size="4" weight="bold" style={{ color: '#111827', marginTop: '4px' }}>
+																{channelType}
+															</Text>
+														</Flex>
+													</Card>
+												</div>
+											</Flex>
+										);
+									})()}
 								</Tabs.Content>
 
 								<Tabs.Content value="recording" style={{ flex: 1, overflow: 'auto', padding: '20px' }}>
-									{selectedLogForTranscript && recordings.filter((r: any) => r.agent_id === selectedLogForTranscript.agent_id && r.status !== 'failed' && (r.created_at && selectedLogForTranscript.created_at && new Date(r.created_at).getTime() <= new Date(selectedLogForTranscript.created_at).getTime() + 120_000 && new Date(r.created_at).getTime() >= new Date(selectedLogForTranscript.created_at).getTime() - 300_000)).length > 0 ? (
+									{selectedLogForTranscript && recordings.filter((r: any) => r.agent_id === selectedLogForTranscript.agent_id && r.status !== 'failed' && (r.session_id === selectedLogForTranscript.session_id || (r.created_at && selectedLogForTranscript.created_at && new Date(r.created_at).getTime() <= new Date(selectedLogForTranscript.created_at).getTime() + 120_000 && new Date(r.created_at).getTime() >= new Date(selectedLogForTranscript.created_at).getTime() - 300_000))).length > 0 ? (
 										<Flex direction="column" gap="4">
 											{recordings
-												.filter((r: any) => r.agent_id === selectedLogForTranscript.agent_id && r.status !== 'failed' && (r.created_at && selectedLogForTranscript.created_at && new Date(r.created_at).getTime() <= new Date(selectedLogForTranscript.created_at).getTime() + 120_000 && new Date(r.created_at).getTime() >= new Date(selectedLogForTranscript.created_at).getTime() - 300_000))
+												.filter((r: any) => r.agent_id === selectedLogForTranscript.agent_id && r.status !== 'failed' && (r.session_id === selectedLogForTranscript.session_id || (r.created_at && selectedLogForTranscript.created_at && new Date(r.created_at).getTime() <= new Date(selectedLogForTranscript.created_at).getTime() + 120_000 && new Date(r.created_at).getTime() >= new Date(selectedLogForTranscript.created_at).getTime() - 300_000)))
 												.map((rec: any) => (
 													<Flex key={rec.id || rec.recording_id} direction="column" gap="3" style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
 														<Flex align="center" justify="between">
