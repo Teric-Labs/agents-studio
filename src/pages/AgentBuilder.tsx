@@ -1460,7 +1460,12 @@ export default function App() {
 								const isActive = activeView === item.id;
 								const sidebarItemContent = (
 									<Box
-										onClick={() => setActiveView(item.id as any)}
+										onClick={() => {
+											setActiveView(item.id as any);
+											if (item.id === 'builder') {
+												loadAgentsList();
+											}
+										}}
 										className={`sidebar-item ${isActive ? 'active' : ''}`}
 										style={{
 											display: 'flex', alignItems: 'center', justifyContent: isSidebarCollapsed ? 'center' : 'start', gap: isSidebarCollapsed ? '0' : '12px',
@@ -1592,7 +1597,13 @@ export default function App() {
 								].map(item => (
 									<Box
 										key={item.id}
-										onClick={() => { setActiveView(item.id as any); setShowMobileMenu(false); }}
+										onClick={() => {
+											setActiveView(item.id as any);
+											setShowMobileMenu(false);
+											if (item.id === 'builder') {
+												loadAgentsList();
+											}
+										}}
 										className={`sidebar-item ${activeView === item.id ? 'active' : ''}`}
 										style={{
 											display: 'flex', alignItems: 'center', gap: '12px',
