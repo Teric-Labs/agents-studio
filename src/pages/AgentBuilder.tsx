@@ -3,6 +3,7 @@ import axios from 'axios';
 import * as LiveKitSDK from 'livekit-client';
 import { Activity, BarChart, Bell, Book, Bot, Brain, Briefcase, Building2, Calendar, Car, Check, CheckCircle, CheckSquare, ChevronLeft, ChevronRight, Code, Copy, Eye, EyeOff, ExternalLink, Globe, GraduationCap, Hammer, Headphones, HeartHandshake, History, Key, LogOut, Menu, MessageSquare, MessageSquareOff, Mic, MoreVertical, Music, Palette, Phone, PhoneOff, Plane, Play, Plus, RefreshCw, Save, Scale, Search, Settings, ShoppingCart, Stethoscope, Trash2, Truck, Undo, User, UserCheck, UtensilsCrossed, Workflow, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { auth } from '../lib/firebase';
 import GmailIcon from '../assets/gmail.svg';
 import GoogleCalendarIcon from '../assets/googlecalendar.svg';
 import GoogleSheetsIcon from '../assets/googlesheets.svg';
@@ -28,7 +29,17 @@ const PHOSAI_TTS_URL = IS_DEV && import.meta.env.VITE_PHOSAI_TTS_URL
 
 // Add axios interceptor to include Firebase token
 axios.interceptors.request.use(async (config) => {
-	const token = await localStorage.getItem('firebase_token');
+	let token = localStorage.getItem('firebase_token');
+	if (auth.currentUser) {
+		try {
+			token = await auth.currentUser.getIdToken();
+			if (token) {
+				localStorage.setItem('firebase_token', token);
+			}
+		} catch (err) {
+			console.error("Error refreshing token in axios interceptor", err);
+		}
+	}
 	if (token) {
 		config.headers.Authorization = `Bearer ${token}`;
 	}
