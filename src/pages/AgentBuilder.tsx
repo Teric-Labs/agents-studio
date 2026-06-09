@@ -246,16 +246,15 @@ export default function App() {
 	const [logTypeFilter, setLogTypeFilter] = useState('all');
 	const [logPage, setLogPage] = useState(1);
 	const [recordings, setRecordings] = useState<any[]>([]);
-	const [isLoadingRecordings, setIsLoadingRecordings] = useState(false);
+	const [_isLoadingRecordings, setIsLoadingRecordings] = useState(false);
 	const [selectedLogForTranscript, setSelectedLogForTranscript] = useState<any>(null);
 
 	const getAgentRouteKey = (agent: any): string | undefined => {
 		return agent?.id || agent?.config?.name || agent?.name;
 	};
 	const [isTranscriptModalOpen, setIsTranscriptModalOpen] = useState(false);
-	const [selectedSessionRecording, setSelectedSessionRecording] = useState<any>(null);
-	const [sessionRecordingUrl, setSessionRecordingUrl] = useState<string | null>(null);
-	const [isLoadingSessionRecording, setIsLoadingSessionRecording] = useState(false);
+	const [_selectedSessionRecording, setSelectedSessionRecording] = useState<any>(null);
+	const [_isLoadingSessionRecording, _setIsLoadingSessionRecording] = useState(false);
 	const [isSummaryExpanded, setIsSummaryExpanded] = useState(true);
 	const [isVoiceUIOpen, setIsVoiceUIOpen] = useState(false);
 	const LOG_PAGE_SIZE = 10;
@@ -1468,42 +1467,6 @@ export default function App() {
 			}
 			table.data-table tbody tr:last-child {
 				border-bottom: none;
-			}
-			table.data-table tbody tr:nth-child(even) {
-				background-color: rgba(0, 0, 0, 0.015);
-			}
-			table.data-table {
-				width: 100%;
-				border-collapse: collapse;
-				table-layout: fixed;
-			}
-			table.data-table thead th {
-				text-align: left;
-				padding: 8px 10px;
-				font-size: 11px;
-				font-weight: 700;
-				color: #111827;
-				text-transform: uppercase;
-				letter-spacing: 0.05em;
-				border-bottom: 1px solid #e5e7eb;
-				background-color: transparent;
-			}
-			table.data-table tbody tr {
-				border-bottom: 1px solid #f1f5f9;
-			}
-			table.data-table tbody tr:hover {
-				background-color: #f8fafc;
-			}
-			table.data-table tbody td {
-				padding: 6px 10px;
-				font-size: 12px;
-				color: #111827;
-			}
-			table.data-table tbody tr:last-child {
-				border-bottom: none;
-			}
-			table.data-table tbody tr:nth-child(even) {
-				background-color: rgba(0, 0, 0, 0.015);
 			}
 		`}</style>
 				{/* Sidebar - Desktop */}
