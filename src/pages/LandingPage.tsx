@@ -1,335 +1,355 @@
-import { Button, Flex, Heading, Text, Box, Grid, Card, Link } from '@radix-ui/themes';
 import { useState } from 'react';
-import AuthModal from '../components/AuthModal';
-import { Mic, MessageSquare, Zap, Shield, BarChart, Check, ArrowRight, Play, Globe, Users, TrendingUp, Twitter, Github, Linkedin, Mail, Workflow } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 import phosaiLogo from '../assets/phosai_logo.png';
 
 export default function LandingPage() {
-	const [authModalOpen, setAuthModalOpen] = useState(false);
-	const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+	const { signIn, signUp, signInWithGoogle } = useAuth();
+
+	const [step, setStep] = useState<'email' | 'password' | 'signup'>('email');
+	const [email, setEmail] = useState('');
+	const [password, setPassword] = useState('');
+	const [confirmPassword, setConfirmPassword] = useState('');
+	const [error, setError] = useState('');
+	const [loading, setLoading] = useState(false);
+
+	const handleContinue = async (e: React.FormEvent) => {
+		e.preventDefault();
+		setError('');
+		if (step === 'email') {
+			if (!email.trim()) { setError('Please enter your email address.'); return; }
+			setStep('password');
+			return;
+		}
+		if (step === 'signup') {
+			if (password !== confirmPassword) { setError('Passwords do not match.'); return; }
+			if (password.length < 6) { setError('Password must be at least 6 characters.'); return; }
+			setLoading(true);
+			try { await signUp(email, password); }
+			catch (err: any) { setError(err.message || 'Failed to create account.'); }
+			finally { setLoading(false); }
+			return;
+		}
+		setLoading(true);
+		try { await signIn(email, password); }
+		catch (err: any) { setError(err.message || 'Invalid email or password.'); }
+		finally { setLoading(false); }
+	};
+
+	const handleGoogle = async () => {
+		setError('');
+		setLoading(true);
+		try { await signInWithGoogle(); }
+		catch (err: any) { setError(err.message || 'Google sign-in failed.'); }
+		finally { setLoading(false); }
+	};
+
 	return (
-		<Box style={{ minHeight: '100vh', backgroundColor: '#fafafa' }}>
-			{/* Navigation */}
-			<header style={{
-				padding: '0',
+		<div style={{ display: 'flex', minHeight: '100vh', fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+
+			{/* ══════════════════════════════════
+			    LEFT PANEL
+			══════════════════════════════════ */}
+			<div style={{
+				flex: '0 0 50%',
+				background: 'linear-gradient(145deg, #0d0d0d 0%, #161616 50%, #111111 100%)',
+				display: 'flex',
+				flexDirection: 'column',
+				alignItems: 'center',
+				justifyContent: 'center',
+				padding: '60px 64px',
+				position: 'relative',
+				overflow: 'hidden',
+			}}>
+
+				{/* Subtle radial glow behind center content */}
+				<div style={{
+					position: 'absolute',
+					top: '50%',
+					left: '50%',
+					transform: 'translate(-50%, -50%)',
+					width: '500px',
+					height: '500px',
+					borderRadius: '50%',
+					background: 'radial-gradient(circle, rgba(240,173,68,0.07) 0%, transparent 70%)',
+					pointerEvents: 'none',
+				}} />
+
+				{/* Top-left logo */}
+				<div style={{ position: 'absolute', top: '28px', left: '32px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+					<img src={phosaiLogo} alt="PhosAI" style={{ height: '44px', objectFit: 'contain', opacity: 0.9 }} />
+					<span style={{ color: '#ffffff', fontSize: '16px', fontWeight: 700, letterSpacing: '0.08em' }}>PhosAI</span>
+				</div>
+
+				{/* Centre content */}
+				<div style={{ textAlign: 'center', maxWidth: '420px', position: 'relative', zIndex: 1 }}>
+
+					{/* Main headline */}
+					<h1 style={{
+						margin: '0 0 20px',
+						fontSize: 'clamp(30px, 3.2vw, 44px)',
+						fontWeight: 800,
+						lineHeight: 1.18,
+						letterSpacing: '-0.03em',
+						color: '#ffffff',
+					}}>
+						Voice agents that<br />
+						<span style={{
+							background: 'linear-gradient(90deg, #f0ad44 0%, #f5c842 100%)',
+							WebkitBackgroundClip: 'text',
+							WebkitTextFillColor: 'transparent',
+						}}>
+							think, speak,<br />and understand.
+						</span>
+					</h1>
+
+					{/* Sub-headline */}
+					<p style={{
+						margin: '0 0 48px',
+						fontSize: '15px',
+						lineHeight: 1.65,
+						color: '#cccccc',
+						fontWeight: 400,
+					}}>
+						Build production-ready AI voice agents in minutes — no infrastructure overhead, no complexity.
+					</p>
+
+					{/* Stats row */}
+					<div style={{
+						display: 'grid',
+						gridTemplateColumns: 'repeat(3, 1fr)',
+						gap: '1px',
+						backgroundColor: '#222',
+						borderRadius: '14px',
+						overflow: 'hidden',
+						border: '1px solid #222',
+					}}>
+						{[
+							{ value: '<200ms', label: 'Response time' },
+							{ value: '99.9%', label: 'Uptime SLA' },
+							{ value: '40+', label: 'Languages' },
+						].map((stat, i) => (
+							<div key={i} style={{
+								backgroundColor: '#141414',
+								padding: '20px 16px',
+								textAlign: 'center',
+							}}>
+								<div style={{
+									fontSize: '20px',
+									fontWeight: 800,
+									color: '#f0ad44',
+									letterSpacing: '-0.02em',
+									marginBottom: '4px',
+								}}>
+									{stat.value}
+								</div>
+								<div style={{ fontSize: '11px', color: '#eeeeee', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+									{stat.label}
+								</div>
+							</div>
+						))}
+					</div>
+
+					{/* Feature pills */}
+					<div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap', marginTop: '28px' }}>
+						{['Real-time STT', 'LLM Reasoning', 'Natural TTS', 'Workflow Automation'].map((pill, i) => (
+							<span key={i} style={{
+								padding: '5px 12px',
+								borderRadius: '999px',
+								border: '1px solid #2a2a2a',
+								backgroundColor: '#1a1a1a',
+								color: '#ffffff',
+								fontSize: '11.5px',
+								fontWeight: 500,
+								letterSpacing: '0.02em',
+							}}>
+								{pill}
+							</span>
+						))}
+					</div>
+				</div>
+
+				{/* Bottom copyright */}
+				<div style={{ position: 'absolute', bottom: '24px', left: 0, right: 0, textAlign: 'center' }}>
+					<span style={{ fontSize: '11px', color: '#ffffff' }}>© 2026 PhosAI · Enterprise Voice AI</span>
+				</div>
+			</div>
+
+			{/* ══════════════════════════════════
+			    RIGHT PANEL — Auth form
+			══════════════════════════════════ */}
+			<div style={{
+				flex: 1,
 				backgroundColor: '#ffffff',
-				borderBottom: '1px solid #e5e7eb',
-				position: 'sticky',
-				top: 0,
-				zIndex: 50
+				display: 'flex',
+				alignItems: 'center',
+				justifyContent: 'center',
+				padding: '48px 40px',
 			}}>
-				<Box style={{ maxWidth: '1280px', margin: '0 auto', padding: '16px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-					<Flex align="center" gap="0" mb="0">
-						<img src={phosaiLogo} alt="phosai" style={{ width: '64px', height: '64px' }} />
-						<Text size="4" weight="bold" style={{ color: '#111827', margin: 0 }}>PHOSAI</Text>
-					</Flex>
-					<Flex gap="6" align="center" display={{ initial: 'none', lg: 'flex' }}>
-						<Link href="#features" style={{ color: '#111827', textDecoration: 'none', fontSize: '14px', fontWeight: 500 }}>Features</Link>
-						<Link href="#use-cases" style={{ color: '#111827', textDecoration: 'none', fontSize: '14px', fontWeight: 500 }}>Use Cases</Link>
-						<Link href="#pricing" style={{ color: '#111827', textDecoration: 'none', fontSize: '14px', fontWeight: 500 }}>Pricing</Link>
-						<Link href="#docs" style={{ color: '#111827', textDecoration: 'none', fontSize: '14px', fontWeight: 500 }}>Documentation</Link>
-						<Link href="#about" style={{ color: '#111827', textDecoration: 'none', fontSize: '14px', fontWeight: 500 }}>About</Link>
-					</Flex>
-					<Flex gap="3" align="center">
-						<Button variant="ghost" size="2" style={{ fontSize: '14px' }} onClick={() => { setAuthMode('signin'); setAuthModalOpen(true); }}>Sign In</Button>
-						<Button size="2" style={{ backgroundColor: '#f0ad44', fontSize: '14px' }} onClick={() => { setAuthMode('signup'); setAuthModalOpen(true); }}>Get Started</Button>
-					</Flex>
-				</Box>
-			</header>
+				<div style={{ width: '100%', maxWidth: '360px' }}>
 
-			{/* Hero Section */}
-			<Box style={{
-				padding: '100px 24px',
-				textAlign: 'center',
-				maxWidth: '1000px',
-				margin: '0 auto'
-			}}>
-				<Box style={{
-					display: 'inline-block',
-					padding: '6px 16px',
-					backgroundColor: '#fffbeb',
-					borderRadius: '9999px',
-					marginBottom: '32px',
-					border: '1px solid #fcd34d'
-				}}>
-					<Text size="2" style={{ color: '#92400e', fontWeight: 500 }}>New: Google Workspace Integration</Text>
-				</Box>
-				<Heading size="9" style={{
-					margin: '0 0 24px',
-					fontWeight: 700,
-					color: '#111827',
-					lineHeight: 1.1,
-					letterSpacing: '-0.02em'
-				}}>
-					Build voice agents<br />that feel human
-				</Heading>
-				<Text size="5" style={{
-					color: '#111827',
-					marginBottom: '40px',
-					maxWidth: '650px',
-					margin: '0 auto 40px',
-					lineHeight: 1.6
-				}}>
-					Create AI-powered voice assistants for your business. Natural conversations, real-time responses, and seamless integrations.
-				</Text>
-				<Flex gap="3" justify="center" align="center" mb="8">
-					<Button size="3" style={{
-						paddingLeft: '24px',
-						paddingRight: '24px',
-						backgroundColor: '#f0ad44',
-						height: '48px'
-					}} onClick={() => { setAuthMode('signup'); setAuthModalOpen(true); }}>
-						Start building <ArrowRight size={18} style={{ marginLeft: '8px' }} />
-					</Button>
-					<Button variant="outline" size="3" style={{ height: '48px' }}>
-						<Play size={18} style={{ marginRight: '8px' }} /> Watch demo
-					</Button>
-				</Flex>
-				<Flex gap="8" justify="center" align="center" mt="6">
-					{[
-						{ icon: Users, label: '10,000+ users' },
-						{ icon: Globe, label: '50+ countries' },
-						{ icon: TrendingUp, label: '99.9% uptime' }
-					].map((stat, i) => (
-						<Flex key={i} gap="2" align="center">
-							<stat.icon size={16} style={{ color: '#f0ad44' }} />
-							<Text size="2" style={{ color: '#111827' }}>{stat.label}</Text>
-						</Flex>
-					))}
-				</Flex>
-			</Box>
+					<h2 style={{ margin: '0 0 6px', fontSize: '22px', fontWeight: 700, color: '#111827', letterSpacing: '-0.02em' }}>
+						{step === 'signup' ? 'Create your account' : 'Sign in to Agent Studio'}
+					</h2>
 
-			{/* Features Section */}
-			<Box style={{ padding: '80px 24px', backgroundColor: '#ffffff', borderTop: '1px solid #e5e7eb' }}>
-				<Box style={{ maxWidth: '1200px', margin: '0 auto' }}>
-					<Heading size="6" style={{ marginBottom: '12px', color: '#111827', fontWeight: 600 }}>
-						Everything you need
-					</Heading>
-					<Text size="4" style={{ color: '#111827', marginBottom: '48px', display: 'block' }}>
-						Powerful features to build production-ready voice agents
-					</Text>
-					<Grid columns={{ initial: '1', md: '2', lg: '3' }} gap="5">
-						{[
-							{ icon: Mic, title: 'Natural voice', desc: 'Human-like speech with natural intonation and emotion' },
-							{ icon: MessageSquare, title: 'Smart conversations', desc: 'AI that understands context and remembers interactions' },
-							{ icon: Zap, title: 'Fast response', desc: 'Sub-second latency for seamless conversations' },
-							{ icon: Shield, title: 'Secure', desc: 'End-to-end encryption and SOC 2 compliance' },
-							{ icon: BarChart, title: 'Analytics', desc: 'Track performance with real-time dashboards' },
-							{ icon: Workflow, title: 'Integrations', desc: 'Connect with Google Workspace, CRM, and more' },
-						].map((feature, i) => (
-							<Card key={i} style={{
-								padding: '24px',
-								border: '1px solid #e5e7eb',
+					<p style={{ margin: '0 0 28px', fontSize: '13.5px', color: '#111827', lineHeight: 1.6 }}>
+						{step === 'email'
+							? 'PhosAI automates customer calls for businesses of every size. Enter your email or use Google to continue.'
+							: step === 'signup'
+							? `Creating a new account for ${email}.`
+							: `Welcome back — enter your password for ${email}.`}
+					</p>
+
+					{error && (
+						<div style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '10px 14px', marginBottom: '16px' }}>
+							<span style={{ color: '#dc2626', fontSize: '13px' }}>{error}</span>
+						</div>
+					)}
+
+					<form onSubmit={handleContinue} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+
+						<div>
+							<label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>
+								Email address *
+							</label>
+							<input
+								type="email"
+								value={email}
+								onChange={e => { setEmail(e.target.value); setError(''); }}
+								readOnly={step !== 'email'}
+								required
+								placeholder="you@company.com"
+								style={{
+									width: '100%',
+									padding: '10px 12px',
+									border: '1.5px solid #e5e7eb',
+									borderRadius: '8px',
+									fontSize: '14px',
+									color: '#111827',
+									backgroundColor: step !== 'email' ? '#f9fafb' : '#fff',
+									outline: 'none',
+									boxSizing: 'border-box',
+									transition: 'border-color 0.15s',
+								}}
+								onFocus={e => { if (step === 'email') e.target.style.borderColor = '#f0ad44'; }}
+								onBlur={e => e.target.style.borderColor = '#e5e7eb'}
+							/>
+						</div>
+
+						{(step === 'password' || step === 'signup') && (
+							<div>
+								<label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>
+									Password *
+								</label>
+								<input
+									type="password"
+									value={password}
+									onChange={e => { setPassword(e.target.value); setError(''); }}
+									required
+									autoFocus
+									placeholder="••••••••"
+									style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', color: '#111827', outline: 'none', boxSizing: 'border-box' }}
+									onFocus={e => e.target.style.borderColor = '#f0ad44'}
+									onBlur={e => e.target.style.borderColor = '#e5e7eb'}
+								/>
+							</div>
+						)}
+
+						{step === 'signup' && (
+							<div>
+								<label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>
+									Confirm Password *
+								</label>
+								<input
+									type="password"
+									value={confirmPassword}
+									onChange={e => { setConfirmPassword(e.target.value); setError(''); }}
+									required
+									placeholder="••••••••"
+									style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', color: '#111827', outline: 'none', boxSizing: 'border-box' }}
+									onFocus={e => e.target.style.borderColor = '#f0ad44'}
+									onBlur={e => e.target.style.borderColor = '#e5e7eb'}
+								/>
+							</div>
+						)}
+
+						<button
+							type="submit"
+							disabled={loading}
+							style={{
+								width: '100%',
+								padding: '11px',
+								backgroundColor: '#111827',
+								color: '#fff',
+								border: 'none',
 								borderRadius: '8px',
-								background: '#ffffff'
-							}}>
-								<Box style={{
-									width: '40px',
-									height: '40px',
-									borderRadius: '8px',
-									backgroundColor: '#fffbeb',
-									display: 'flex', alignItems: 'center', justifyContent: 'center',
-									marginBottom: '16px'
-								}}>
-									<feature.icon size={20} style={{ color: '#f0ad44' }} />
-								</Box>
-								<Heading size="4" style={{ marginBottom: '8px', color: '#111827', fontWeight: 600 }}>{feature.title}</Heading>
-								<Text size="2" style={{ color: '#111827', lineHeight: 1.5 }}>{feature.desc}</Text>
-							</Card>
-						))}
-					</Grid>
-				</Box>
-			</Box>
+								fontSize: '14px',
+								fontWeight: 600,
+								cursor: loading ? 'not-allowed' : 'pointer',
+								opacity: loading ? 0.75 : 1,
+								letterSpacing: '0.01em',
+								marginTop: '2px',
+								transition: 'opacity 0.15s',
+							}}
+						>
+							{loading ? 'Please wait...' : step === 'email' ? 'Continue' : step === 'signup' ? 'Create Account' : 'Sign In'}
+						</button>
+					</form>
 
-			{/* Use Cases Section */}
-			<Box style={{ padding: '80px 24px', backgroundColor: '#fafafa', borderTop: '1px solid #e5e7eb' }}>
-				<Box style={{ maxWidth: '1200px', margin: '0 auto' }}>
-					<Heading size="6" style={{ marginBottom: '12px', color: '#111827', fontWeight: 600 }}>
-						Built for every use case
-					</Heading>
-					<Text size="4" style={{ color: '#111827', marginBottom: '48px', display: 'block' }}>
-						Power voice agents for any industry
-					</Text>
-					<Grid columns={{ initial: '1', md: '2', lg: '4' }} gap="4">
-						{[
-							'Customer Support',
-							'Sales & Booking',
-							'Appointments',
-							'Order Taking',
-							'Information',
-							'Lead Qualification',
-							'Tech Support',
-							'Voice Assistant'
-						].map((useCase, i) => (
-							<Card key={i} style={{
-								padding: '20px',
-								border: '1px solid #e5e7eb',
-								borderRadius: '8px',
-								background: '#ffffff'
-							}}>
-								<Flex align="center" gap="3" justify="center">
-									<Check size={18} style={{ color: '#f0ad44', flexShrink: 0 }} />
-									<Text size="2" weight="medium" style={{ color: '#111827' }}>{useCase}</Text>
-								</Flex>
-							</Card>
-						))}
-					</Grid>
-				</Box>
-			</Box>
+					<div style={{ textAlign: 'center', marginTop: '14px' }}>
+						{step === 'email' ? (
+							<span style={{ fontSize: '13px', color: '#111827' }}>
+								Don't have an account?{' '}
+								<button type="button" onClick={() => { setStep('signup'); setError(''); }}
+									style={{ background: 'none', border: 'none', color: '#111827', fontWeight: 600, cursor: 'pointer', fontSize: '13px', textDecoration: 'underline', padding: 0 }}>
+									Sign up
+								</button>
+							</span>
+						) : (
+							<button type="button" onClick={() => { setStep('email'); setError(''); setPassword(''); setConfirmPassword(''); }}
+								style={{ background: 'none', border: 'none', color: '#111827', cursor: 'pointer', fontSize: '13px', padding: 0 }}>
+								← Use a different email
+							</button>
+						)}
+					</div>
 
-			{/* CTA Section */}
-			<Box style={{
-				padding: '80px 24px',
-				backgroundColor: '#211d1e',
-				textAlign: 'center'
-			}}>
-				<Box style={{ maxWidth: '700px', margin: '0 auto' }}>
-					<Heading size="6" style={{
-						margin: '0 0 16px',
-						fontWeight: 600,
-						color: '#ffffff'
-					}}>
-						Ready to build your first agent?
-					</Heading>
-					<Text size="4" style={{
-						color: '#111827',
-						marginBottom: '32px',
-						display: 'block',
-						lineHeight: 1.5
-					}}>
-						Start building for free. No credit card required.
-					</Text>
-					<Button size="3" style={{
-						paddingLeft: '24px',
-						paddingRight: '24px',
-						backgroundColor: '#f0ad44',
-						color: '#211d1e',
-						height: '48px'
-					}} onClick={() => { setAuthMode('signup'); setAuthModalOpen(true); }}>
-						Get started <ArrowRight size={18} style={{ marginLeft: '8px' }} />
-					</Button>
-				</Box>
-			</Box>
+					{/* OR divider */}
+					<div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '22px 0' }}>
+						<div style={{ flex: 1, height: '1px', backgroundColor: '#f0f0f0' }} />
+						<span style={{ fontSize: '12px', color: '#9ca3af', fontWeight: 500 }}>or</span>
+						<div style={{ flex: 1, height: '1px', backgroundColor: '#f0f0f0' }} />
+					</div>
 
-			{/* Footer */}
-			<footer style={{ padding: '64px 24px 32px', backgroundColor: '#ffffff', borderTop: '1px solid #e5e7eb' }}>
-				<Box style={{ maxWidth: '1280px', margin: '0 auto' }}>
-					<Grid columns={{ initial: '1', sm: '2', md: '4' }} gap="8" mb="8">
-						{/* Company Column */}
-						<Box>
-							<Flex align="center" gap="0" mb="4">
-								<img src={phosaiLogo} alt="phosai" style={{ width: '64px', height: '64px' }} />
-								<Text size="4" weight="bold" style={{ color: '#111827', margin: 0 }}>PHOSAI</Text>
-							</Flex>
-							<Text size="2" style={{ color: '#111827', marginBottom: '16px', lineHeight: 1.6 }}>
-								Build intelligent voice agents for your business with natural conversations and seamless integrations.
-							</Text>
-							<Flex gap="4">
-								<Box style={{
-									width: '36px',
-									height: '36px',
-									borderRadius: '8px',
-									backgroundColor: '#f3f4f6',
-									display: 'flex',
-									alignItems: 'center',
-									justifyContent: 'center',
-									cursor: 'pointer'
-								}}>
-									<Twitter size={18} style={{ color: '#111827' }} />
-								</Box>
-								<Box style={{
-									width: '36px',
-									height: '36px',
-									borderRadius: '8px',
-									backgroundColor: '#f3f4f6',
-									display: 'flex',
-									alignItems: 'center',
-									justifyContent: 'center',
-									cursor: 'pointer'
-								}}>
-									<Github size={18} style={{ color: '#111827' }} />
-								</Box>
-								<Box style={{
-									width: '36px',
-									height: '36px',
-									borderRadius: '8px',
-									backgroundColor: '#f3f4f6',
-									display: 'flex',
-									alignItems: 'center',
-									justifyContent: 'center',
-									cursor: 'pointer'
-								}}>
-									<Linkedin size={18} style={{ color: '#111827' }} />
-								</Box>
-							</Flex>
-						</Box>
-
-						{/* Product Column */}
-						<Box>
-							<Heading size="3" style={{ marginBottom: '16px', color: '#111827', fontWeight: 600 }}>Product</Heading>
-							<Flex direction="column" gap="3">
-								<Link href="#features" style={{ color: '#111827', textDecoration: 'none', fontSize: '14px' }}>Features</Link>
-								<Link href="#pricing" style={{ color: '#111827', textDecoration: 'none', fontSize: '14px' }}>Pricing</Link>
-								<Link href="#integrations" style={{ color: '#111827', textDecoration: 'none', fontSize: '14px' }}>Integrations</Link>
-								<Link href="#changelog" style={{ color: '#111827', textDecoration: 'none', fontSize: '14px' }}>Changelog</Link>
-								<Link href="#roadmap" style={{ color: '#111827', textDecoration: 'none', fontSize: '14px' }}>Roadmap</Link>
-							</Flex>
-						</Box>
-
-						{/* Resources Column */}
-						<Box>
-							<Heading size="3" style={{ marginBottom: '16px', color: '#111827', fontWeight: 600 }}>Resources</Heading>
-							<Flex direction="column" gap="3">
-								<Link href="#docs" style={{ color: '#111827', textDecoration: 'none', fontSize: '14px' }}>Documentation</Link>
-								<Link href="#api" style={{ color: '#111827', textDecoration: 'none', fontSize: '14px' }}>API Reference</Link>
-								<Link href="#guides" style={{ color: '#111827', textDecoration: 'none', fontSize: '14px' }}>Guides</Link>
-								<Link href="#blog" style={{ color: '#111827', textDecoration: 'none', fontSize: '14px' }}>Blog</Link>
-								<Link href="#support" style={{ color: '#111827', textDecoration: 'none', fontSize: '14px' }}>Support</Link>
-							</Flex>
-						</Box>
-
-						{/* Company Column */}
-						<Box>
-							<Heading size="3" style={{ marginBottom: '16px', color: '#111827', fontWeight: 600 }}>Company</Heading>
-							<Flex direction="column" gap="3">
-								<Link href="#about" style={{ color: '#111827', textDecoration: 'none', fontSize: '14px' }}>About Us</Link>
-								<Link href="#careers" style={{ color: '#111827', textDecoration: 'none', fontSize: '14px' }}>Careers</Link>
-								<Link href="#contact" style={{ color: '#111827', textDecoration: 'none', fontSize: '14px' }}>Contact</Link>
-								<Link href="#privacy" style={{ color: '#111827', textDecoration: 'none', fontSize: '14px' }}>Privacy Policy</Link>
-								<Link href="#terms" style={{ color: '#111827', textDecoration: 'none', fontSize: '14px' }}>Terms of Service</Link>
-							</Flex>
-						</Box>
-					</Grid>
-
-					{/* Bottom Bar */}
-					<Box style={{
-						paddingTop: '32px',
-						borderTop: '1px solid #e5e7eb',
-						display: 'flex',
-						justifyContent: 'space-between',
-						alignItems: 'center',
-						flexWrap: 'wrap',
-						gap: '16px'
-					}}>
-						<Text size="2" style={{ color: '#111827' }}>© 2026 phosai. All rights reserved.</Text>
-						<Flex gap="6" align="center">
-							<Flex gap="2" align="center">
-								<Globe size={14} style={{ color: '#111827' }} />
-								<Text size="2" style={{ color: '#111827' }}>English</Text>
-							</Flex>
-							<Flex gap="2" align="center">
-								<Mail size={14} style={{ color: '#111827' }} />
-								<Text size="2" style={{ color: '#111827' }}>hello@phosai.com</Text>
-							</Flex>
-						</Flex>
-					</Box>
-				</Box>
-			</footer>
-			<AuthModal
-				open={authModalOpen}
-				onOpenChange={setAuthModalOpen}
-				mode={authMode}
-			/>
-		</Box>
+					{/* Google */}
+					<button type="button" onClick={handleGoogle} disabled={loading}
+						style={{
+							width: '100%',
+							padding: '10px',
+							backgroundColor: '#fff',
+							border: '1.5px solid #e5e7eb',
+							borderRadius: '8px',
+							fontSize: '14px',
+							fontWeight: 500,
+							color: '#374151',
+							cursor: loading ? 'not-allowed' : 'pointer',
+							display: 'flex',
+							alignItems: 'center',
+							justifyContent: 'center',
+							gap: '10px',
+							transition: 'border-color 0.15s',
+						}}
+						onMouseEnter={e => (e.currentTarget.style.borderColor = '#d1d5db')}
+						onMouseLeave={e => (e.currentTarget.style.borderColor = '#e5e7eb')}
+					>
+						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style={{ width: '18px', height: '18px' }}>
+							<path d="M21.6334 12.1873C21.6334 11.3679 21.5669 10.77 21.423 10.1499H12.0664V13.8482H17.5585C17.4479 14.7673 16.8499 16.1514 15.5211 17.0815L15.5025 17.2053L18.4609 19.4972L18.6659 19.5176C20.5482 17.7791 21.6334 15.2213 21.6334 12.1873Z" fill="#4285F4" />
+							<path d="M12.0667 21.9312C14.7574 21.9312 17.0163 21.0453 18.6662 19.5173L15.5215 17.0812C14.6799 17.6681 13.5505 18.0777 12.0667 18.0777C9.43139 18.0777 7.19467 16.3393 6.39734 13.9365L6.28047 13.9464L3.20429 16.3271L3.16406 16.439C4.80284 19.6944 8.16902 21.9312 12.0667 21.9312Z" fill="#34A853" />
+							<path d="M6.39782 13.9368C6.18744 13.3167 6.06568 12.6523 6.06568 11.9658C6.06568 11.2793 6.18744 10.6149 6.38675 9.99484L6.38118 9.86278L3.26645 7.44385L3.16454 7.49232C2.48912 8.84324 2.10156 10.3603 2.10156 11.9658C2.10156 13.5714 2.48912 15.0884 3.16454 16.4393L6.39782 13.9368Z" fill="#FBBC05" />
+							<path d="M12.0667 5.85336C13.938 5.85336 15.2003 6.66168 15.9201 7.33718L18.7326 4.59107C17.0053 2.9855 14.7574 2 12.0667 2C8.16902 2 4.80284 4.23672 3.16406 7.49214L6.38628 9.99466C7.19467 7.59183 9.43139 5.85336 12.0667 5.85336Z" fill="#EB4335" />
+						</svg>
+						Continue with Google
+					</button>
+				</div>
+			</div>
+		</div>
 	);
 }

@@ -1381,7 +1381,7 @@ export default function App() {
 			<Box style={{
 				display: 'flex',
 				minHeight: '100vh',
-				fontFamily: "'DM Sans', 'Segoe UI', sans-serif",
+				fontFamily: "'Proxima Nova', 'Segoe UI', sans-serif",
 				backgroundColor: '#fafafa',
 				color: '#111827',
 				overflow: 'hidden'
@@ -1436,10 +1436,76 @@ export default function App() {
 				.hoverable-row.active-row {
 					background-color: rgba(240, 173, 68, 0.08) !important;
 				}
-				table td, table th {
-					white-space: nowrap !important;
-				}
-			`}</style>
+			table td, table th {
+				white-space: nowrap !important;
+			}
+			table.data-table {
+				width: 100%;
+				border-collapse: collapse;
+				table-layout: fixed;
+			}
+			table.data-table thead th {
+				text-align: left;
+				padding: 8px 10px;
+				font-size: 11px;
+				font-weight: 700;
+				color: #111827;
+				text-transform: uppercase;
+				letter-spacing: 0.05em;
+				border-bottom: 1px solid #e5e7eb;
+				background-color: transparent;
+			}
+			table.data-table tbody tr {
+				border-bottom: 1px solid #f1f5f9;
+			}
+			table.data-table tbody tr:hover {
+				background-color: #f8fafc;
+			}
+			table.data-table tbody td {
+				padding: 6px 10px;
+				font-size: 12px;
+				color: #111827;
+			}
+			table.data-table tbody tr:last-child {
+				border-bottom: none;
+			}
+			table.data-table tbody tr:nth-child(even) {
+				background-color: rgba(0, 0, 0, 0.015);
+			}
+			table.data-table {
+				width: 100%;
+				border-collapse: collapse;
+				table-layout: fixed;
+			}
+			table.data-table thead th {
+				text-align: left;
+				padding: 8px 10px;
+				font-size: 11px;
+				font-weight: 700;
+				color: #111827;
+				text-transform: uppercase;
+				letter-spacing: 0.05em;
+				border-bottom: 1px solid #e5e7eb;
+				background-color: transparent;
+			}
+			table.data-table tbody tr {
+				border-bottom: 1px solid #f1f5f9;
+			}
+			table.data-table tbody tr:hover {
+				background-color: #f8fafc;
+			}
+			table.data-table tbody td {
+				padding: 6px 10px;
+				font-size: 12px;
+				color: #111827;
+			}
+			table.data-table tbody tr:last-child {
+				border-bottom: none;
+			}
+			table.data-table tbody tr:nth-child(even) {
+				background-color: rgba(0, 0, 0, 0.015);
+			}
+		`}</style>
 				{/* Sidebar - Desktop */}
 				<Box display={{ initial: 'none', lg: 'block' }} style={{ flexShrink: 0, transition: 'width 0.2s ease-in-out', width: isSidebarCollapsed ? '60px' : '190px' }}>
 					<Flex direction="column" style={{
@@ -2151,7 +2217,7 @@ export default function App() {
 														align="center" 
 														className={`hoverable-row cursor-pointer ${isSelected ? 'active-row' : ''}`}
 														style={{ 
-															boxShadow: isSelected ? 'inset 4px 0 0 0 #f0ad44' : 'inset 4px 0 0 0 transparent',
+															cursor: 'pointer',
 														}} 
 														onClick={() => loadAgent(agent.id, true)}
 													>
