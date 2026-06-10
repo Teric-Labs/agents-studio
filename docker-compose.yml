@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile
     container_name: phosai-agents-studio
     ports:
-      - "80:80"
+      - "9070:80"
     restart: unless-stopped
     env_file:
       - .env
