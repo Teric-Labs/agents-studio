@@ -1,21 +1,29 @@
-# Development Dockerfile for React Vite application
+# Production Dockerfile for React Vite application
 
-FROM node:20-alpine
+# ---- Build Stage ----
+FROM node:20-alpine AS builder
 
-# Set working directory
 WORKDIR /app
 
-# Copy package files
+# Copy package files and install dependencies
 COPY package*.json ./
-
-# Install dependencies
-RUN npm install
+RUN npm ci
 
 # Copy application source
 COPY . .
 
-# Expose Vite dev server port
-EXPOSE 5173
+# Build the static assets
+RUN npm run build
 
-# Start development server
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+# ---- Production Stage ----
+FROM nginx:alpine
+
+# Copy built assets
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Copy nginx configuration
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]

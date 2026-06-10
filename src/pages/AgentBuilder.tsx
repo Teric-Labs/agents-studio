@@ -20,7 +20,7 @@ import { AgentWorkflowBuilder } from '../AgentWorkflowBuilder';
 import { KnowledgeBaseManager } from '../components/KnowledgeBaseManager';
 import { AgentChatTranscript } from '../components/agents-ui/agent-chat-transcript';
 import { toast, Toaster } from "sonner";
-import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarTrigger, SidebarInset, useSidebar } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://backend.atekervoices.com';
@@ -1456,7 +1456,7 @@ export default function App() {
 					}}>
 						<Box style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
 							<Box display={{ initial: 'block', lg: 'none' }}>
-								<Button variant="ghost" onClick={() => setShowMobileMenu(true)} style={{ color: '#ffffff' }}><Menu size={20} /></Button>
+								<SidebarTrigger />
 							</Box>
 							<Box>
 								{activeView === 'workflows' && editingWorkflowId ? (
