@@ -1456,7 +1456,7 @@ export default function App() {
 					}}>
 						<Box style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
 							<Box display={{ initial: 'block', lg: 'none' }}>
-								<SidebarTrigger />
+								<SidebarTrigger className="text-white [&_svg]:text-white" />
 							</Box>
 							<Box>
 								{activeView === 'workflows' && editingWorkflowId ? (
@@ -1470,7 +1470,7 @@ export default function App() {
 											onChange={e => setWorkflowName(e.target.value)}
 											size="2"
 											variant="soft"
-											style={{ fontWeight: 800, fontSize: '18px', color: '#111827', minWidth: '300px' }}
+											style={{ fontWeight: 800, fontSize: '18px', color: '#ffffff', minWidth: '200px' }}
 										/>
 									</Flex>
 								) : (
