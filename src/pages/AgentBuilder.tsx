@@ -2846,7 +2846,18 @@ export default function App() {
 																	<Flex direction="column" gap="3" p="3">
 																		<Box>
 																			<Text size="2" weight="bold" mb="2" style={{ display: 'block', color: '#111827' }}>Attach Saved Workflow</Text>
-																			<Select.Root value={selectedWorkflowId} onValueChange={setSelectedWorkflowId}>
+																			<Select.Root value={selectedWorkflowId} onValueChange={(val) => {
+																				setSelectedWorkflowId(val);
+																				if (val && val !== 'none') {
+																					const foundWf = workflowsList.find(wf => wf.id === val);
+																					if (foundWf && foundWf.nodes) {
+																						setWorkflowsPayload({ nodes: foundWf.nodes, edges: foundWf.edges });
+																						setWorkflowName(foundWf.name);
+																					}
+																				} else {
+																					setWorkflowsPayload(null);
+																				}
+																			}}>
 																				<Select.Trigger placeholder="Choose a workflow..." style={{ width: '100%' }} />
 																				<Select.Content>
 																					<Select.Item value="none">No workflow attached (uses instructions)</Select.Item>
