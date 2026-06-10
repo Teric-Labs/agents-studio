@@ -19,7 +19,9 @@ import { AgentAudioVisualizerAura } from '../components/agents-ui/agent-audio-vi
 import { AgentWorkflowBuilder } from '../AgentWorkflowBuilder';
 import { KnowledgeBaseManager } from '../components/KnowledgeBaseManager';
 import { AgentChatTranscript } from '../components/agents-ui/agent-chat-transcript';
-import * as Toast from '@radix-ui/react-toast';
+import { toast, Toaster } from "sonner";
+import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/app-sidebar";
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'https://backend.atekervoices.com';
 const IS_DEV = import.meta.env.DEV;
@@ -56,110 +58,96 @@ type ProviderConfig = {
 	config_fields?: any[];
 };
 
+const LANGUAGE_MAP: Record<string, string> = {
+	eng: 'English', ach: 'Acholi', teo: 'Ateso', nyn: 'Runyankore',
+	swa: 'Swahili', lug: 'Luganda', xog: 'Lusoga', kin: 'Kinyarwanda',
+	luo: 'Luo', kik: 'Kikuyu', hau: 'Hausa', ibo: 'Igbo',
+	twi: 'Twi', yor: 'Yoruba', wol: 'Wolof', pcm: 'Pidgin', fat: 'Fula',
+};
+
+const getLangName = (id: string): string => {
+	const match = id.match(/^([a-z]{3})/);
+	if (match) return LANGUAGE_MAP[match[1]] || match[1].toUpperCase();
+	return '';
+};
+
 const VoiceCard = ({ voice, playingVoiceId, previewAudioUrl, onPlayToggle, themeColor = '#f0ad44', showToast }: any) => {
-	const containerRef = useRef<HTMLDivElement>(null);
-	const wsRef = useRef<WaveSurfer | null>(null);
 	const isActive = playingVoiceId === voice.id;
 	const FlagComponent = voice.flag && (Flags as any)[voice.flag] ? (Flags as any)[voice.flag] : null;
-
-	useEffect(() => {
-		if (containerRef.current && !wsRef.current) {
-			wsRef.current = WaveSurfer.create({
-				container: containerRef.current,
-				waveColor: '#d1d5db',
-				progressColor: themeColor,
-				barWidth: 3,
-				barGap: 2,
-				barRadius: 2,
-				height: 30,
-				cursorWidth: 0,
-				interact: false,
-			});
-			
-			const fakePeaks = Array.from({ length: 40 }).map((_, i) => Math.abs(Math.sin(i * 0.4)) * 0.5 + Math.random() * 0.5);
-			wsRef.current.load('', [fakePeaks]);
-			
-			wsRef.current.on('finish', () => {
-				onPlayToggle(voice.id, true);
-			});
-		}
-		return () => {
-			if (wsRef.current) {
-				wsRef.current.destroy();
-				wsRef.current = null;
-			}
-		};
-	}, []);
-
-	useEffect(() => {
-		if (wsRef.current) {
-			if (isActive) {
-				wsRef.current.setOptions({ waveColor: '#9ca3af' });
-				if (previewAudioUrl) {
-					wsRef.current.load(previewAudioUrl).then(() => {
-						wsRef.current?.play();
-					});
-				}
-			} else {
-				wsRef.current.setOptions({ waveColor: '#d1d5db' });
-				wsRef.current.stop();
-			}
-		}
-	}, [isActive, previewAudioUrl]);
+	const langLabel = getLangName(voice.id);
 
 	return (
-		<Card size="2" style={{ borderRadius: '12px', border: '1px solid #e5e7eb', backgroundColor: '#ffffff', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
-			<Flex direction="column" gap="3" style={{ height: '100%' }}>
-				<Flex justify="between" align="start">
-					<Flex gap="3" align="center">
-						<IconButton radius="full" size="3" style={{ backgroundColor: themeColor, color: '#ffffff', cursor: 'pointer' }} onClick={() => onPlayToggle(voice.id, false)} disabled={isActive && !previewAudioUrl}>
-							{isActive && !previewAudioUrl ? <RefreshCw size={18} className="animate-spin" /> : (isActive ? <span style={{ width: '12px', height: '12px', backgroundColor: '#fff', display: 'inline-block', borderRadius: '2px' }} /> : <Play size={18} style={{ marginLeft: '2px', fill: 'currentColor' }} />)}
-						</IconButton>
-						<Box>
-							<Flex gap="2" align="center">
-								{FlagComponent ? (
-									<Box style={{ width: '20px', display: 'flex', alignItems: 'center' }}>
-										<FlagComponent title={voice.flag} style={{ width: '100%', borderRadius: '2px' }} />
-									</Box>
-								) : (
-									<span style={{ fontSize: '14px' }}>{voice.flag}</span>
-								)}
-								<Text size="3" weight="bold" style={{ color: '#111827', display: 'block', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={voice.name}>{voice.name}</Text>
-								<Text size="2" style={{ color: '#111827' }}>{voice.gender}</Text>
-							</Flex>
-							<Flex gap="2" align="center" style={{ marginTop: '2px', visibility: 'hidden', height: 0, overflow: 'hidden' }}>
-								<Text size="1" style={{ color: '#111827', fontFamily: 'monospace' }}>{voice.id}</Text>
-								<Copy size={10} color="#111827" style={{ cursor: 'pointer' }} onClick={() => { navigator.clipboard.writeText(voice.id); showToast("ID Copied", "Voice ID has been copied to clipboard."); }} />
-							</Flex>
-						</Box>
-					</Flex>
-					<IconButton variant="ghost" size="1" style={{ color: '#9ca3af' }}>
-						<MoreVertical size={16} />
-					</IconButton>
-				</Flex>
-				
-				<Box my="2">
-					<Flex justify="between" mb="1">
-						<Text size="1" style={{ color: isActive ? themeColor : '#111827', fontWeight: 600 }}>0:00</Text>
-						<Text size="1" style={{ color: '#111827', fontWeight: 600 }}>0:10</Text>
-					</Flex>
-					<div style={{ position: 'relative', height: '30px', display: 'flex', alignItems: 'center' }}>
-						<div style={{ position: 'absolute', width: '100%', borderTop: '1px dashed #d1d5db', top: '50%' }} />
-						<div ref={containerRef} style={{ width: '100%', zIndex: 1 }} />
+		<div
+			onClick={() => onPlayToggle(voice.id, false)}
+			style={{
+				display: 'flex',
+				alignItems: 'center',
+				gap: '10px',
+				padding: '8px 12px',
+				borderRadius: '10px',
+				border: `1.5px solid ${isActive ? themeColor : '#e5e7eb'}`,
+				backgroundColor: isActive ? '#fffbeb' : '#ffffff',
+				cursor: 'pointer',
+				transition: 'all 0.15s ease',
+				userSelect: 'none',
+			}}
+			onMouseEnter={e => { if (!isActive) e.currentTarget.style.borderColor = '#d1d5db'; }}
+			onMouseLeave={e => { if (!isActive) e.currentTarget.style.borderColor = '#e5e7eb'; }}
+		>
+			<div style={{
+				width: '28px',
+				height: '28px',
+				borderRadius: '50%',
+				backgroundColor: isActive ? themeColor : '#f3f4f6',
+				display: 'flex',
+				alignItems: 'center',
+				justifyContent: 'center',
+				flexShrink: 0,
+			}}>
+				{isActive && !previewAudioUrl ? (
+					<RefreshCw size={12} color="#fff" className="animate-spin" />
+				) : isActive ? (
+					<div style={{ width: '6px', height: '6px', backgroundColor: '#fff', borderRadius: '1px' }} />
+				) : (
+					<Play size={12} color="#111827" style={{ marginLeft: '1px' }} />
+				)}
+			</div>
+
+			{FlagComponent ? (
+				<div style={{ width: '20px', height: '14px', flexShrink: 0, overflow: 'hidden', borderRadius: '2px' }}>
+					<FlagComponent title={voice.flag} style={{ width: '100%', height: 'auto' }} />
+				</div>
+			) : voice.flag ? (
+				<span style={{ fontSize: '16px', flexShrink: 0 }}>{voice.flag}</span>
+			) : null}
+
+			<div style={{ flex: 1, minWidth: 0 }}>
+				<div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+					<span style={{ fontSize: '12px', fontWeight: 600, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={voice.name}>
+						{voice.name}
+					</span>
+					{voice.gender && (
+						<span style={{ fontSize: '8px', fontWeight: 600, color: '#111827', textTransform: 'uppercase', letterSpacing: '0.04em', backgroundColor: '#f3f4f6', padding: '1px 5px', borderRadius: '3px', flexShrink: 0 }}>
+							{voice.gender}
+						</span>
+					)}
+					{langLabel && (
+						<span style={{ fontSize: '8px', fontWeight: 500, color: '#111827', backgroundColor: '#f3f4f6', padding: '1px 5px', borderRadius: '3px', flexShrink: 0 }}>
+							{langLabel}
+						</span>
+					)}
+				</div>
+				{voice.tags && voice.tags.length > 0 && (
+					<div style={{ display: 'flex', gap: '3px', flexWrap: 'wrap', marginTop: '2px' }}>
+						{voice.tags.filter((tag: string) => tag.toLowerCase() !== (voice.gender || '').toLowerCase()).slice(0, 2).map((tag: string) => (
+							<span key={tag} style={{ fontSize: '8px', color: '#111827', backgroundColor: '#f9fafb', padding: '1px 4px', borderRadius: '2px', fontWeight: 500 }}>
+								{tag}
+							</span>
+						))}
 					</div>
-				</Box>
-
-				<Flex gap="2" wrap="wrap" mt="1">
-					{(voice.tags || []).filter((tag: string) => tag.toLowerCase() !== (voice.gender || '').toLowerCase()).map((tag: string) => (
-						<Badge key={tag} color="gray" variant="surface" size="1" style={{ backgroundColor: '#f3f4f6', color: '#374151', borderRadius: '4px', fontWeight: 500 }}>{tag}</Badge>
-					))}
-				</Flex>
-
-				<Text size="2" style={{ color: '#111827', lineHeight: 1.5, marginTop: '4px', flexGrow: 1 }}>
-					{voice.description}
-				</Text>
-			</Flex>
-		</Card>
+				)}
+			</div>
+		</div>
 	);
 };
 
@@ -259,9 +247,6 @@ export default function App() {
 	const [isVoiceUIOpen, setIsVoiceUIOpen] = useState(false);
 	const LOG_PAGE_SIZE = 10;
 
-	// Toast State
-	const [toastOpen, setToastOpen] = useState(false);
-	const [toastContent, setToastContent] = useState({ title: '', description: '' });
 	const [workflowName, setWorkflowName] = useState('New Workflow');
 
 	// Search & Pagination State
@@ -651,8 +636,7 @@ export default function App() {
 	}, [isConnecting]);
 
 	const showToast = (title: string, description: string) => {
-		setToastContent({ title, description });
-		setToastOpen(true);
+		toast(title, { description });
 	};
 
 	const testConnection = async () => {
@@ -1375,16 +1359,21 @@ export default function App() {
 	};
 
 	return (
-		<Toast.Provider swipeDirection="right">
+		<SidebarProvider className="min-h-screen">
 			<audio ref={audioElementRef} autoPlay playsInline style={{ display: 'none' }} />
-			<Box style={{
-				display: 'flex',
-				minHeight: '100vh',
-				fontFamily: "'Proxima Nova', 'Segoe UI', sans-serif",
-				backgroundColor: '#fafafa',
-				color: '#111827',
-				overflow: 'hidden'
-			}}>
+			<AppSidebar
+				activeView={activeView}
+				onNavigate={(view) => {
+					setActiveView(view as any);
+					if (view === 'builder') loadAgentsList();
+				}}
+				onSignOut={() => void signOut()}
+				profileDisplayName={profileDisplayName}
+				profileEmail={profileEmail}
+				profilePhotoUrl={profilePhotoUrl}
+				profileInitials={profileInitials}
+			/>
+			<SidebarInset className="min-h-screen overflow-hidden">
 				<style>{`
 				@media (max-width: 600px) {
 					.hide-on-mobile { display: none !important; }
@@ -1412,19 +1401,6 @@ export default function App() {
 				@keyframes visualizer-pulse {
 					0%, 100% { transform: scale(1); opacity: 0.9; }
 					50% { transform: scale(1.1); opacity: 1; }
-				}
-				.sidebar-item {
-					color: #9ca3af !important;
-					background-color: transparent !important;
-					transition: all 0.2s ease-in-out;
-				}
-				.sidebar-item:hover {
-					color: #ffffff !important;
-					background-color: rgba(255, 255, 255, 0.05) !important;
-				}
-				.sidebar-item.active {
-					color: #161617 !important;
-					background-color: #f0ad44 !important;
 				}
 				.hoverable-row {
 					transition: background-color 0.2s;
@@ -1469,231 +1445,7 @@ export default function App() {
 				border-bottom: none;
 			}
 		`}</style>
-				{/* Sidebar - Desktop */}
-				<Box display={{ initial: 'none', lg: 'block' }} style={{ flexShrink: 0, transition: 'width 0.2s ease-in-out', width: isSidebarCollapsed ? '60px' : '190px' }}>
-					<Flex direction="column" style={{
-						width: '100%',
-						backgroundColor: '#161617',
-						borderRight: '1px solid #2e303a',
-						padding: '16px 0',
-						height: '100vh',
-						transition: 'all 0.2s ease-in-out'
-					}}>
-						<Box style={{ padding: isSidebarCollapsed ? '0 8px 16px' : '0 12px 16px', borderBottom: '1px solid #2e303a', transition: 'padding 0.2s ease-in-out' }}>
-							<Flex align="center" gap="2" justify={isSidebarCollapsed ? 'center' : 'start'}>
-								<img src={phosaiLogo} alt="" width={32} height={32} style={{ objectFit: 'contain', flexShrink: 0 }} />
-								{!isSidebarCollapsed && (
-									<Text style={{ fontWeight: 800, fontSize: 14, color: '#ffffff', whiteSpace: 'nowrap' }}>PhosAI Studio</Text>
-								)}
-							</Flex>
-						</Box>
-
-						<Box style={{ flexGrow: 1, padding: isSidebarCollapsed ? '12px 6px' : '12px 8px', overflowY: 'auto', transition: 'padding 0.2s ease-in-out' }}>
-							{[
-								{ id: 'dashboard', label: 'Analytics', icon: <BarChart size={18} /> },
-								{ id: 'builder', label: 'Agents', icon: <Brain size={18} /> },
-								{ id: 'voices', label: 'Voice Library', icon: <Mic size={18} /> },
-								{ id: 'workflows', label: 'Workflows', icon: <Workflow size={18} /> },
-								{ id: 'knowledge', label: 'Knowledge Base', icon: <Book size={18} /> },
-								{ id: 'logs', label: 'Conversations', icon: <History size={18} /> }
-							].map(item => {
-								const isActive = activeView === item.id;
-								const sidebarItemContent = (
-									<Box
-										onClick={() => {
-											setActiveView(item.id as any);
-											if (item.id === 'builder') {
-												loadAgentsList();
-											}
-										}}
-										className={`sidebar-item ${isActive ? 'active' : ''}`}
-										style={{
-											display: 'flex', alignItems: 'center', justifyContent: isSidebarCollapsed ? 'center' : 'start', gap: isSidebarCollapsed ? '0' : '12px',
-											padding: '8px 10px', borderRadius: 'var(--radius-1)', marginBottom: '4px',
-											fontWeight: isActive ? 600 : 400,
-											fontSize: '14px', cursor: 'pointer',
-										}}
-									>
-										{item.icon}
-										{!isSidebarCollapsed && <span style={{ whiteSpace: 'nowrap' }}>{item.label}</span>}
-									</Box>
-								);
-
-								return isSidebarCollapsed ? (
-									<Tooltip content={item.label} key={item.id} side="right">
-										{sidebarItemContent}
-									</Tooltip>
-								) : (
-									<Box key={item.id}>
-										{sidebarItemContent}
-									</Box>
-								);
-							})}
-						</Box>
-
-						{/* Collapse Toggle */}
-						<Box style={{ padding: '8px 12px', borderTop: '1px solid #2e303a', display: 'flex', justifyContent: isSidebarCollapsed ? 'center' : 'end' }}>
-							<IconButton
-								variant="ghost"
-								onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-								style={{ color: '#9ca3af', cursor: 'pointer' }}
-							>
-								{isSidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-							</IconButton>
-						</Box>
-
-						<Box style={{ padding: isSidebarCollapsed ? '12px 8px' : '12px 16px 20px', borderTop: '1px solid #2e303a', marginTop: 'auto', backgroundColor: '#161617', transition: 'padding 0.2s ease-in-out' }}>
-							{user ? (
-								isSidebarCollapsed ? (
-									<Flex direction="column" align="center" gap="3">
-										<Tooltip content={profileDisplayName} side="right">
-											{profilePhotoUrl ? (
-												<img src={profilePhotoUrl} alt="" width={40} height={40} style={{ borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid #fcd34d' }} />
-											) : (
-												<Box style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#f0ad44', color: '#211d1e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700, flexShrink: 0, letterSpacing: '0.02em' }}>
-													{profileInitials}
-												</Box>
-											)}
-										</Tooltip>
-										<Tooltip content="Sign out" side="right">
-											<IconButton variant="solid" style={{ backgroundColor: '#f0ad44', color: '#161617', cursor: 'pointer' }} size="2" onClick={() => { void signOut(); }}>
-												<LogOut size={16} />
-											</IconButton>
-										</Tooltip>
-									</Flex>
-								) : (
-									<Flex direction="column" gap="3">
-										<Flex align="center" gap="3">
-											{profilePhotoUrl ? (
-												<img src={profilePhotoUrl} alt="" width={40} height={40} style={{ borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid #fcd34d' }} />
-											) : (
-												<Box style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#f0ad44', color: '#211d1e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700, flexShrink: 0, letterSpacing: '0.02em' }}>
-													{profileInitials}
-												</Box>
-											)}
-											<Box style={{ minWidth: 0, flex: 1 }}>
-												<Text size="2" weight="bold" as="div" style={{ lineHeight: 1.25, color: '#ffffff', fontSize: '14px' }}>{profileDisplayName}</Text>
-												{profileEmail ? (
-													<Text size="1" style={{ color: '#9ca3af', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '2px', fontWeight: 500, fontSize: '14px' }} title={profileEmail}>{profileEmail}</Text>
-												) : null}
-											</Box>
-										</Flex>
-										<Button variant="solid" style={{ backgroundColor: '#f0ad44', color: '#161617', width: '100%', justifyContent: 'center', fontWeight: 600, fontSize: '14px', cursor: 'pointer' }} onClick={() => { void signOut(); }}>
-											<LogOut size={16} style={{ marginRight: '6px' }} /> Sign out
-										</Button>
-									</Flex>
-								)
-							) : (
-								isSidebarCollapsed ? (
-									<Flex direction="column" align="center" gap="2">
-										<Tooltip content="Sign in" side="right">
-											<IconButton variant="ghost" size="2" style={{ color: '#ffffff', cursor: 'pointer' }} onClick={() => window.location.href = '/'}>
-												<User size={16} />
-											</IconButton>
-										</Tooltip>
-									</Flex>
-								) : (
-									<Flex direction="column" gap="2">
-										<Text size="1" weight="medium" style={{ color: '#9ca3af', fontSize: '14px' }}>Sign in to sync your workspace.</Text>
-										<Flex gap="2">
-											<Button variant="ghost" size="2" style={{ flex: 1, fontSize: '14px', color: '#ffffff' }} onClick={() => window.location.href = '/'}>Sign in</Button>
-											<Button size="2" style={{ flex: 1, backgroundColor: '#f0ad44', color: '#161617', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }} onClick={() => window.location.href = '/'}>Sign up</Button>
-										</Flex>
-									</Flex>
-								)
-							)}
-						</Box>
-					</Flex>
-				</Box>
-
-				{/* Sidebar - Mobile Overlay */}
-				{showMobileMenu && (
-					<Box style={{
-						position: 'fixed', inset: 0, zIndex: 100, backgroundColor: 'rgba(0,0,0,0.6)',
-						display: 'flex'
-					}} onClick={() => setShowMobileMenu(false)}>
-						<Box style={{
-							width: '280px', height: '100%', backgroundColor: '#161617',
-							display: 'flex', flexDirection: 'column', borderRight: '1px solid #2e303a'
-						}} onClick={e => e.stopPropagation()}>
-							<Box style={{ padding: '24px 20px 24px', borderBottom: '1px solid #2e303a' }}>
-								<Flex align="center" justify="between">
-									<Flex align="center" gap="3">
-										<img src={phosaiLogo} alt="" width={36} height={36} style={{ objectFit: 'contain', flexShrink: 0 }} />
-										<Text style={{ fontWeight: 800, fontSize: 12, color: '#ffffff' }}>PhosAI Studio</Text>
-									</Flex>
-									<Button variant="ghost" onClick={() => setShowMobileMenu(false)} style={{ color: '#ffffff', cursor: 'pointer' }}><X size={20} /></Button>
-								</Flex>
-							</Box>
-
-							<Box style={{ flexGrow: 1, padding: '16px 12px', overflowY: 'auto' }}>
-								{[
-									{ id: 'dashboard', label: 'Analytics', icon: <BarChart size={18} /> },
-									{ id: 'builder', label: 'Agents', icon: <Brain size={18} /> },
-									{ id: 'voices', label: 'Voice Library', icon: <Mic size={18} /> },
-									{ id: 'workflows', label: 'Workflows', icon: <Workflow size={18} /> },
-									{ id: 'knowledge', label: 'Knowledge Base', icon: <Book size={18} /> },
-									{ id: 'logs', label: 'Conversations', icon: <History size={18} /> }
-								].map(item => (
-									<Box
-										key={item.id}
-										onClick={() => {
-											setActiveView(item.id as any);
-											setShowMobileMenu(false);
-											if (item.id === 'builder') {
-												loadAgentsList();
-											}
-										}}
-										className={`sidebar-item ${activeView === item.id ? 'active' : ''}`}
-										style={{
-											display: 'flex', alignItems: 'center', gap: '12px',
-											padding: '12px', borderRadius: 'var(--radius-1)', marginBottom: '4px',
-											fontSize: '14px', cursor: 'pointer'
-										}}
-									>
-										{item.icon}
-										{item.label}
-									</Box>
-								))}
-							</Box>
-							<Box style={{ padding: '12px 16px 20px', borderTop: '1px solid #2e303a', backgroundColor: '#161617' }}>
-								{user ? (
-									<Flex direction="column" gap="3">
-										<Flex align="center" gap="3">
-											{profilePhotoUrl ? (
-												<img src={profilePhotoUrl} alt="" width={40} height={40} style={{ borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid #fcd34d' }} />
-											) : (
-												<Box style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#f0ad44', color: '#161617', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700, flexShrink: 0 }}>
-													{profileInitials}
-												</Box>
-											)}
-											<Box style={{ minWidth: 0, flex: 1 }}>
-												<Text size="2" weight="bold" as="div" style={{ lineHeight: 1.25, color: '#ffffff' }}>{profileDisplayName}</Text>
-												{profileEmail ? (
-													<Text size="1" style={{ color: '#9ca3af', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '2px', fontWeight: 500 }} title={profileEmail}>{profileEmail}</Text>
-												) : null}
-											</Box>
-										</Flex>
-										<Button variant="solid" size="2" style={{ width: '100%', justifyContent: 'center', fontWeight: 600, backgroundColor: '#f0ad44', color: '#161617', cursor: 'pointer' }} onClick={() => { void signOut(); setShowMobileMenu(false); }}>
-											<LogOut size={16} style={{ marginRight: '6px' }} /> Sign out
-										</Button>
-									</Flex>
-								) : (
-									<Flex direction="column" gap="2">
-										<Text size="1" weight="medium" style={{ color: '#9ca3af' }}>Sign in to sync your workspace.</Text>
-										<Flex gap="2">
-											<Button variant="ghost" size="2" style={{ flex: 1, color: '#ffffff', cursor: 'pointer' }} onClick={() => window.location.href = '/'}>Sign in</Button>
-											<Button size="2" style={{ flex: 1, backgroundColor: '#f0ad44', color: '#161617', fontWeight: 600, cursor: 'pointer' }} onClick={() => window.location.href = '/'}>Sign up</Button>
-										</Flex>
-									</Flex>
-								)}
-							</Box>
-						</Box>
-					</Box>
-				)}
-
-				{/* Main Content */}
-				<Box style={{ flexGrow: 1, height: '100vh', overflowY: 'auto', position: 'relative' }}>
+				<div className="flex h-screen flex-col overflow-auto">
 					{/* Header */}
 					<header style={{
 						padding: '12px 18px',
@@ -1726,9 +1478,9 @@ export default function App() {
 										<Heading size="4" style={{ margin: 0, fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em' }}>
 											{activeView === 'dashboard' ? 'Overview' : activeView === 'knowledge' ? 'Knowledge Management' : activeView === 'workflows' ? 'Workflow Designer' : activeView === 'logs' ? 'Conversations' : 'Agent Builder'}
 										</Heading>
-										<Box display={{ initial: 'none', sm: 'block' }}>
-											<Text size="1" style={{ color: '#9ca3af', marginTop: '2px', fontWeight: 500 }}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} — {user ? `Welcome back, ${profileDisplayName}.` : 'Welcome back.'}</Text>
-										</Box>
+									<Box display={{ initial: 'none', sm: 'block' }}>
+										<Text size="1" style={{ color: '#ffffff', marginTop: '2px', fontWeight: 500 }}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} — {user ? `Welcome back, ${profileDisplayName}.` : 'Welcome back.'}</Text>
+									</Box>
 									</>
 								)}
 							</Box>
@@ -1736,7 +1488,7 @@ export default function App() {
 						<Flex align="center" gap="4">
 							<Box display={{ initial: 'none', md: 'block' }}>
 								<Flex align="center" gap="2">
-									<Text size="1" style={{ color: '#9ca3af' }}>Status</Text>
+								<Text size="1" style={{ color: '#ffffff' }}>Status</Text>
 									<Badge color={connectionStatus === 'connected' ? 'amber' : 'gray'} variant="soft">
 										{connectionStatus === 'connected' ? 'Online' : 'Offline'}
 									</Badge>
@@ -2258,22 +2010,22 @@ export default function App() {
 							<Box>
 								{/* Voices Library Header & Search */}
 								<Flex direction={{ initial: 'column', md: 'row' }} justify="between" align={{ initial: 'stretch', md: 'center' }} gap="4" mb="6">
-									<TextField.Root placeholder="Search voices by name, description, or ID..." size="3" value={voiceSearch} onChange={(e) => setVoiceSearch(e.target.value)} style={{ flex: 1, backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #e5e7eb', maxWidth: '600px' }}>
+								<TextField.Root placeholder="Search voices..." size="2" value={voiceSearch} onChange={(e) => setVoiceSearch(e.target.value)} style={{ flex: 1, backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #e5e7eb', maxWidth: '400px' }}>
 										<TextField.Slot>
 											<Search size={16} color="#6b7280" />
 										</TextField.Slot>
 									</TextField.Root>
-									<Flex gap="3" direction={{ initial: 'column', sm: 'row' }}>
-										<Select.Root value={voiceCategory} onValueChange={setVoiceCategory} size="2">
-											<Select.Trigger style={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '8px', minWidth: '140px' }} />
+								<Flex gap="2" direction={{ initial: 'column', sm: 'row' }}>
+									<Select.Root value={voiceCategory} onValueChange={setVoiceCategory} size="1">
+										<Select.Trigger style={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '6px', minWidth: '120px', fontSize: '12px' }} />
 											<Select.Content>
 												<Select.Item value="all_voices">All Voices</Select.Item>
 												<Select.Item value="custom">Custom Voices</Select.Item>
 												<Select.Item value="catalog">Voice Catalog</Select.Item>
 											</Select.Content>
 										</Select.Root>
-										<Select.Root value={voiceLanguage} onValueChange={setVoiceLanguage} size="2">
-											<Select.Trigger style={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '8px', minWidth: '140px' }} />
+									<Select.Root value={voiceLanguage} onValueChange={setVoiceLanguage} size="1">
+										<Select.Trigger style={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '6px', minWidth: '110px', fontSize: '12px' }} />
 											<Select.Content>
 												<Select.Item value="all_langs">All Languages</Select.Item>
 												<Select.Item value="eng">English</Select.Item>
@@ -2295,8 +2047,8 @@ export default function App() {
 												<Select.Item value="fat">Fula</Select.Item>
 											</Select.Content>
 										</Select.Root>
-										<Select.Root value={voiceCountry} onValueChange={setVoiceCountry} size="2">
-											<Select.Trigger style={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '8px', minWidth: '140px' }} />
+									<Select.Root value={voiceCountry} onValueChange={setVoiceCountry} size="1">
+										<Select.Trigger style={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '6px', minWidth: '110px', fontSize: '12px' }} />
 											<Select.Content>
 												<Select.Item value="all_countries">All Countries</Select.Item>
 												<Select.Item value="UG">Uganda (UG)</Select.Item>
@@ -2308,8 +2060,8 @@ export default function App() {
 												<Select.Item value="GN">Guinea (GN)</Select.Item>
 											</Select.Content>
 										</Select.Root>
-										<Select.Root value={voiceGender} onValueChange={setVoiceGender} size="2">
-											<Select.Trigger style={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '8px', minWidth: '140px' }} />
+								<Select.Root value={voiceGender} onValueChange={setVoiceGender} size="1">
+									<Select.Trigger style={{ backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '6px', minWidth: '110px', fontSize: '12px' }} />
 											<Select.Content>
 												<Select.Item value="all_genders">All Genders</Select.Item>
 												<Select.Item value="M">Male</Select.Item>
@@ -2319,44 +2071,6 @@ export default function App() {
 									</Flex>
 								</Flex>
 
-								{/* Custom Voice Cloning */}
-								<Box mb="8">
-									<Heading size="4" mb="4" style={{ color: '#111827', fontWeight: 700 }}>Custom Voice Cloning</Heading>
-									<Card size="2" style={{ backgroundColor: '#fafafa', border: '1px solid #e5e7eb', borderRadius: '12px' }}>
-										<Flex direction="column" gap="4">
-											<Text size="2" style={{ color: '#4b5563' }}>Upload a reference audio file to instantly clone a voice and synthesize new speech.</Text>
-											<Grid columns={{ initial: '1', md: '2' }} gap="4">
-												<Flex direction="column" gap="3">
-													<label>
-														<Text size="2" weight="bold" style={{ color: '#374151', marginBottom: '4px', display: 'block' }}>Reference Audio (WAV/MP3)</Text>
-														<input type="file" accept="audio/*" onChange={(e) => setCloneAudioFile(e.target.files?.[0] || null)} style={{ display: 'block', width: '100%', padding: '8px', border: '1px solid #e5e7eb', borderRadius: '8px', backgroundColor: '#fff' }} />
-													</label>
-													<label>
-														<Text size="2" weight="bold" style={{ color: '#374151', marginBottom: '4px', display: 'block' }}>Reference Text (Optional)</Text>
-														<TextField.Root placeholder="Transcript of the reference audio..." value={cloneRefText} onChange={e => setCloneRefText(e.target.value)} />
-													</label>
-												</Flex>
-												<Flex direction="column" gap="3">
-													<label style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-														<Text size="2" weight="bold" style={{ color: '#374151', marginBottom: '4px', display: 'block' }}>Text to Synthesize</Text>
-														<TextArea placeholder="Enter the text you want the cloned voice to say..." value={cloneText} onChange={e => setCloneText(e.target.value)} style={{ flexGrow: 1 }} />
-													</label>
-												</Flex>
-											</Grid>
-											<Flex justify="between" align="center">
-												<Box>
-													{clonedAudioUrl && (
-														<audio controls src={clonedAudioUrl} style={{ height: '40px', maxWidth: '300px' }} autoPlay />
-													)}
-												</Box>
-												<Button style={{ backgroundColor: '#f0ad44', color: '#ffffff' }} onClick={handleVoiceClone} disabled={isCloning || !cloneAudioFile || !cloneText.trim()}>
-													{isCloning ? <RefreshCw size={16} className="animate-spin" /> : <Mic size={16} />}
-													Generate Custom Voice
-												</Button>
-											</Flex>
-										</Flex>
-									</Card>
-								</Box>
 
 								{/* Voice Catalog */}
 								<Box>
@@ -3479,18 +3193,7 @@ export default function App() {
 						</Box>
 					)}
 
-					<Toast.Root className="ToastRoot" open={toastOpen} onOpenChange={setToastOpen} duration={3000}>
-						<Toast.Title className="ToastTitle">{toastContent.title}</Toast.Title>
-						<Toast.Description className="ToastDescription">
-							{toastContent.description}
-						</Toast.Description>
-						<Toast.Action asChild altText="Close">
-							<button className="ToastClose" onClick={() => setToastOpen(false)}>
-								<X size={14} />
-							</button>
-						</Toast.Action>
-					</Toast.Root>
-					<Toast.Viewport className="ToastViewport" />
+					
 
 					{/* Transcript Detail Side Panel */}
 					<>
@@ -3745,8 +3448,9 @@ export default function App() {
 							</Tabs.Root>
 						</div>
 					</>
-				</Box>
-			</Box>
-		</Toast.Provider>
+			</div>
+			</SidebarInset>
+			<Toaster position="top-center" richColors />
+		</SidebarProvider>
 	);
 }
