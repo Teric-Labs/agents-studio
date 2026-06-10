@@ -36,7 +36,10 @@ const NAV_ITEMS = [
 
 const sidebarMenuButtonStyles = `
   .sidebar-item[data-active="true"] svg {
-    color: #161617 !important;
+    color: #ffffff !important;
+  }
+  .sidebar-item[data-active="true"] span {
+    color: #ffffff !important;
   }
   .sidebar-item:not([data-active="true"]):hover svg {
     color: #ffffff !important;
@@ -97,7 +100,7 @@ export function AppSidebar({
                       onClick={() => onNavigate(item.id)}
                       className={`sidebar-item ${isActive ? "active" : ""}`}
                     >
-                      <Icon className={isActive ? "text-sidebar-primary-foreground" : "text-sidebar-foreground"} />
+                      <Icon className="text-sidebar-foreground" />
                       {!collapsed && <span>{item.label}</span>}
                     </SidebarMenuButton>
                   </SidebarMenuItem>
