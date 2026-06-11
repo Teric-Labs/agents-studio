@@ -2849,6 +2849,7 @@ export default function App() {
 																			<Select.Root value={selectedWorkflowId} onValueChange={(val) => {
 																				setSelectedWorkflowId(val);
 																				if (val && val !== 'none') {
+																					setAgentType('workflow');
 																					const foundWf = workflowsList.find(wf => wf.id === val);
 																					if (foundWf && foundWf.nodes) {
 																						setWorkflowsPayload({ nodes: foundWf.nodes, edges: foundWf.edges });
@@ -2856,6 +2857,7 @@ export default function App() {
 																					}
 																				} else {
 																					setWorkflowsPayload(null);
+																					setAgentType('general');
 																				}
 																			}}>
 																				<Select.Trigger placeholder="Choose a workflow..." style={{ width: '100%' }} />
