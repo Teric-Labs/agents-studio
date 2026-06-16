@@ -443,23 +443,23 @@ export default function App() {
 	// Initiate Google OAuth
 	const initiateGoogleOAuth = async () => {
 		try {
-			const response = await axios.post(`${API_BASE}/google/authorize`, {});
-			const { authorization_url, user_id } = response.data;
+			// Pass the Firebase UID so the backend stores tokens under the correct account.
+			// The agent worker also uses the Firebase UID when looking up credentials.
+			const firebaseUid = user?.uid;
+			if (!firebaseUid) {
+				console.error('No Firebase user — cannot connect Google account');
+				return;
+			}
 
-			// Store user ID
-			localStorage.setItem('user_id', user_id);
+			const response = await axios.post(`${API_BASE}/google/authorize`, { user_id: firebaseUid });
+			const { authorization_url } = response.data;
 
-			// Open Google OAuth in popup
-			const popup = window.open(authorization_url, '_blank', 'width=500,height=600');
+			// Store Firebase UID so fetchGoogleConnectionStatus can use it
+			localStorage.setItem('user_id', firebaseUid);
 
-			// Poll for connection status change
-			const checkInterval = setInterval(() => {
-				if (popup && popup.closed) {
-					clearInterval(checkInterval);
-					// Refresh connection status after popup closes
-					setTimeout(fetchGoogleConnectionStatus, 1000);
-				}
-			}, 1000);
+			// Redirect in the same tab — standard OAuth flow.
+			// The backend will redirect back here with ?google_connected=1 when done.
+			window.location.href = authorization_url;
 		} catch (error) {
 			console.error('Failed to initiate Google OAuth:', error);
 		}
@@ -483,9 +483,19 @@ export default function App() {
 		}
 	};
 
-	// Fetch connections on mount
+	// Fetch connections on mount + detect return from Google OAuth
 	useEffect(() => {
-		if (toolsEnabled) {
+		const params = new URLSearchParams(window.location.search);
+		if (params.get('google_connected') === '1') {
+			// Came back from Google OAuth — refresh status and clean URL
+			const cleanUrl = window.location.pathname + window.location.hash;
+			window.history.replaceState({}, '', cleanUrl);
+			// Ensure user_id is set from Firebase UID
+			if (user?.uid) {
+				localStorage.setItem('user_id', user.uid);
+			}
+			fetchGoogleConnectionStatus();
+		} else if (toolsEnabled) {
 			fetchGoogleConnectionStatus();
 		}
 	}, [toolsEnabled]);
