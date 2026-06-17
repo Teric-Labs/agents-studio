@@ -552,47 +552,77 @@ export default function App() {
 	// ── OAuth return: restore nav state from localStorage, clean URL, refresh badge
 	useEffect(() => {
 		const params = new URLSearchParams(window.location.search);
-		if (params.get('google_connected') !== '1') return;
+		const path = window.location.pathname;
+		const code = params.get('code');
+		const state = params.get('state');
 
-		// Clean the URL immediately
-		window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+		const isCallbackRoute = path.includes('/auth/google/callback');
 
-		// Restore the explicit localStorage backup (most reliable across redirects)
-		const raw = localStorage.getItem('oauth_return_ctx');
-		if (raw) {
-			try {
-				const ctx = JSON.parse(raw);
-				// Navigation state — most critical
-				if (ctx.activeView)   setActiveView(ctx.activeView);
-				if (ctx.creationStep) setCreationStep(ctx.creationStep);
-				// Local volatile state
-				if (ctx.currentAgent) setCurrentAgent(ctx.currentAgent);
-				// Form fields
-				if (ctx.agentName !== undefined)              setAgentName(ctx.agentName);
-				if (ctx.instructions !== undefined)           setInstructions(ctx.instructions);
-				if (ctx.welcomeMessage !== undefined)         setWelcomeMessage(ctx.welcomeMessage);
-				if (ctx.allowInterruption !== undefined)      setAllowInterruption(ctx.allowInterruption);
-				if (ctx.agentType !== undefined)              setAgentType(ctx.agentType);
-				if (ctx.selectedWorkflowId !== undefined)     setSelectedWorkflowId(ctx.selectedWorkflowId);
-				if (ctx.agentCategory !== undefined)          setAgentCategory(ctx.agentCategory);
-				if (ctx.agentIndustry !== undefined)          setAgentIndustry(ctx.agentIndustry);
-				if (ctx.agentUseCase !== undefined)           setAgentUseCase(ctx.agentUseCase);
-				if (ctx.chatOnly !== undefined)               setChatOnly(ctx.chatOnly);
-				if (ctx.visualizerType !== undefined)         setVisualizerType(ctx.visualizerType);
-				if (ctx.brandColor !== undefined)             setBrandColor(ctx.brandColor);
-				if (ctx.toolsEnabled !== undefined)           setToolsEnabled(ctx.toolsEnabled);
-				if (ctx.selectedToolCategories !== undefined) setSelectedToolCategories(ctx.selectedToolCategories);
-				if (ctx.webSearchEnabled !== undefined)       setWebSearchEnabled(ctx.webSearchEnabled);
-				if (ctx.tavilyApiKey !== undefined)           setTavilyApiKey(ctx.tavilyApiKey);
-			} catch (e) {
-				console.warn('Could not restore OAuth return context:', e);
-			} finally {
-				localStorage.removeItem('oauth_return_ctx');
+		const processOAuthCallback = async () => {
+			if (isCallbackRoute && code && state) {
+				try {
+					// Forward the code and state to our backend callback proxy endpoint!
+					const res = await fetch(`${API_BASE}/auth/google/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`);
+					if (!res.ok) {
+						throw new Error(`Backend callback returned status ${res.status}`);
+					}
+					// Once successfully processed by backend, proceed with rehydration
+					restoreContext();
+				} catch (err) {
+					console.error("Failed to process Google OAuth callback:", err);
+					showToast("Connection Failed", "Failed to connect Google account. Please try again.");
+					// Still clean URL
+					window.history.replaceState({}, '', window.location.origin + window.location.hash);
+				}
+			} else if (params.get('google_connected') === '1' || isCallbackRoute) {
+				// Fallback if google_connected query parameter is present, or if it is the callback route without code (already processed)
+				restoreContext();
 			}
-		}
+		};
 
-		if (user?.uid) localStorage.setItem('user_id', user.uid);
-		fetchGoogleConnectionStatus();
+		const restoreContext = () => {
+			// Clean the URL immediately to the clean domain (remove callback path and query params)
+			window.history.replaceState({}, '', window.location.origin + window.location.hash);
+
+			// Restore the explicit localStorage backup (most reliable across redirects)
+			const raw = localStorage.getItem('oauth_return_ctx');
+			if (raw) {
+				try {
+					const ctx = JSON.parse(raw);
+					// Navigation state — most critical
+					if (ctx.activeView)   setActiveView(ctx.activeView);
+					if (ctx.creationStep) setCreationStep(ctx.creationStep);
+					// Local volatile state
+					if (ctx.currentAgent) setCurrentAgent(ctx.currentAgent);
+					// Form fields
+					if (ctx.agentName !== undefined)              setAgentName(ctx.agentName);
+					if (ctx.instructions !== undefined)           setInstructions(ctx.instructions);
+					if (ctx.welcomeMessage !== undefined)         setWelcomeMessage(ctx.welcomeMessage);
+					if (ctx.allowInterruption !== undefined)      setAllowInterruption(ctx.allowInterruption);
+					if (ctx.agentType !== undefined)              setAgentType(ctx.agentType);
+					if (ctx.selectedWorkflowId !== undefined)     setSelectedWorkflowId(ctx.selectedWorkflowId);
+					if (ctx.agentCategory !== undefined)          setAgentCategory(ctx.agentCategory);
+					if (ctx.agentIndustry !== undefined)          setAgentIndustry(ctx.agentIndustry);
+					if (ctx.agentUseCase !== undefined)           setAgentUseCase(ctx.agentUseCase);
+					if (ctx.chatOnly !== undefined)               setChatOnly(ctx.chatOnly);
+					if (ctx.visualizerType !== undefined)         setVisualizerType(ctx.visualizerType);
+					if (ctx.brandColor !== undefined)             setBrandColor(ctx.brandColor);
+					if (ctx.toolsEnabled !== undefined)           setToolsEnabled(ctx.toolsEnabled);
+					if (ctx.selectedToolCategories !== undefined) setSelectedToolCategories(ctx.selectedToolCategories);
+					if (ctx.webSearchEnabled !== undefined)       setWebSearchEnabled(ctx.webSearchEnabled);
+					if (ctx.tavilyApiKey !== undefined)           setTavilyApiKey(ctx.tavilyApiKey);
+				} catch (e) {
+					console.warn('Could not restore OAuth return context:', e);
+				} finally {
+					localStorage.removeItem('oauth_return_ctx');
+				}
+			}
+
+			if (user?.uid) localStorage.setItem('user_id', user.uid);
+			fetchGoogleConnectionStatus();
+		};
+
+		processOAuthCallback();
 	}, []); // eslint-disable-line react-hooks/exhaustive-deps
 
 	// ── Normal Google connection status fetch when tools tab is opened
