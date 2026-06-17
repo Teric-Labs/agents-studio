@@ -9,14 +9,15 @@ import {
   PURGE,
   REGISTER,
 } from 'redux-persist';
-import sessionStorage from 'redux-persist/lib/storage/session'; // sessionStorage: cleared when tab closes
+import storage from 'redux-persist/lib/storage'; // localStorage — reliable across all redirects
 import builderReducer from './builderSlice';
+
 
 const persistConfig = {
   key: 'builder',
-  storage: sessionStorage,
-  // Persist everything in the builder slice
+  storage,
 };
+
 
 const rootReducer = combineReducers({
   builder: persistReducer(persistConfig, builderReducer),
