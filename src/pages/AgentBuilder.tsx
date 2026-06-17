@@ -562,7 +562,7 @@ export default function App() {
 			if (isCallbackRoute && code && state) {
 				try {
 					// Forward the code and state to our backend callback proxy endpoint!
-					const res = await fetch(`${API_BASE}/auth/google/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`);
+					const res = await fetch(`${API_BASE}/auth/google/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}&json=1`);
 					if (!res.ok) {
 						throw new Error(`Backend callback returned status ${res.status}`);
 					}
