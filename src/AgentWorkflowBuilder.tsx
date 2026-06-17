@@ -52,38 +52,38 @@ const TaskNode = ({ id, data, selected }: any) => {
         <div style={{
             position: 'relative',
             padding: 0,
-            borderRadius: '12px',
+            borderRadius: '8px',
             border: `2px solid ${borderColor}`,
-            width: '380px',
+            width: '240px',
             backgroundColor: 'var(--color-surface)',
             boxShadow: selected ? '0 0 0 1px var(--accent-8), 0 4px 12px var(--black-a2)' : 'var(--shadow-2)',
             display: 'flex',
             flexDirection: 'column'
         }}>
             {/* Connection Handles */}
-            {!isStart && <Handle type="target" position={Position.Top} style={{ background: 'var(--accent-9)', border: 'none', width: '10px', height: '10px', top: '-6px' }} />}
-            {!isEnd && <Handle type="source" position={Position.Bottom} style={{ background: 'var(--accent-9)', border: 'none', width: '10px', height: '10px', bottom: '-6px' }} />}
+            {!isStart && <Handle type="target" position={Position.Top} style={{ background: 'var(--accent-9)', border: 'none', width: '8px', height: '8px', top: '-5px' }} />}
+            {!isEnd && <Handle type="source" position={Position.Bottom} style={{ background: 'var(--accent-9)', border: 'none', width: '8px', height: '8px', bottom: '-5px' }} />}
 
-            <div style={{ borderRadius: '10px', overflow: 'hidden', display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
+            <div style={{ borderRadius: '6px', overflow: 'hidden', display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
                 {/* Header */}
-                <Flex justify="between" align="center" style={{ padding: '12px 16px', backgroundColor: 'var(--gray-2)', borderBottom: '1px solid var(--gray-5)' }}>
-                    <Flex align="center" gap="3">
-                        <Box style={{ backgroundColor: iconBgColor, padding: '6px', borderRadius: '6px' }}>
-                            <Icon size={16} color={iconColor} />
+                <Flex justify="between" align="center" style={{ padding: '8px 10px', backgroundColor: 'var(--gray-2)', borderBottom: '1px solid var(--gray-5)' }}>
+                    <Flex align="center" gap="2">
+                        <Box style={{ backgroundColor: iconBgColor, padding: '4px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
+                            <Icon size={14} color={iconColor} />
                         </Box>
-                        <Text size="3" weight="bold" style={{ color: 'var(--gray-12)' }}>
+                        <Text size="2" weight="bold" style={{ color: 'var(--gray-12)' }}>
                             {data.label || 'Task Node'}
                         </Text>
                     </Flex>
-                    <Settings2 size={16} color="var(--gray-8)" style={{ cursor: 'pointer' }} />
+                    <Settings2 size={14} color="var(--gray-8)" style={{ cursor: 'pointer' }} />
                 </Flex>
 
                 {/* Body */}
-                <Flex direction="column" gap="2" style={{ padding: '16px', flexGrow: 1 }}>
-                    <Text size="1" weight="bold" style={{ textTransform: 'uppercase', letterSpacing: '0.05em', color: '#111827' }}>
+                <Flex direction="column" gap="1" style={{ padding: '10px', flexGrow: 1 }}>
+                    <Text size="1" weight="bold" style={{ textTransform: 'uppercase', letterSpacing: '0.05em', color: '#4b5563', fontSize: '9px' }}>
                         Prompt
                     </Text>
-                    <Text size="2" style={{ lineHeight: '1.6', color: '#111827', whiteSpace: 'pre-wrap' }}>
+                    <Text size="1" style={{ lineHeight: '1.4', color: '#374151', whiteSpace: 'pre-wrap', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                         {data.description || 'No prompt defined. Open settings to configure instructions for the AI.'}
                     </Text>
                 </Flex>
@@ -248,13 +248,65 @@ function AgentWorkflowBuilderInternal({ initialNodesData, onSaveData, activeNode
     };
 
     return (
-        <Flex gap="0" style={{ width: '100%', height: '100%', minHeight: '600px' }}>
+        <Flex gap="0" className="workflow-builder-container" style={{ width: '100%', height: '100%', minHeight: '600px' }}>
             <style>
                 {`
                 @keyframes pulse-glow {
                     0% { box-shadow: 0 0 10px var(--accent-9); }
                     50% { box-shadow: 0 0 30px var(--accent-9), 0 0 15px var(--accent-9); }
                     100% { box-shadow: 0 0 10px var(--accent-9); }
+                }
+
+                .workflow-builder-container {
+                    flex-direction: row;
+                }
+
+                .properties-sidebar {
+                    width: 320px;
+                    height: 100%;
+                    overflow-y: auto;
+                }
+
+                .custom-tool-panel {
+                    margin-bottom: 24px !important;
+                }
+
+                /* Compact Minimap on desktop, hidden on mobile */
+                .react-flow__minimap {
+                    transform: scale(0.75);
+                    transform-origin: bottom right;
+                    bottom: 10px !important;
+                    right: 10px !important;
+                }
+
+                @media (max-width: 640px) {
+                    .workflow-builder-container {
+                        flex-direction: column !important;
+                    }
+                    .properties-sidebar {
+                        width: 100% !important;
+                        height: 250px !important;
+                        border-left: none !important;
+                        border-top: 1px solid var(--gray-5) !important;
+                    }
+                    .react-flow__minimap {
+                        display: none !important;
+                    }
+                    .custom-tool-panel {
+                        margin-bottom: 12px !important;
+                        transform: scale(0.9);
+                        transform-origin: bottom center;
+                    }
+                    .custom-top-panel {
+                        top: 8px !important;
+                        right: 8px !important;
+                    }
+                    .responsive-add-btn {
+                        font-size: 11px !important;
+                        height: 26px !important;
+                        padding-left: 8px !important;
+                        padding-right: 8px !important;
+                    }
                 }
                 `}
             </style>
@@ -293,60 +345,60 @@ function AgentWorkflowBuilderInternal({ initialNodesData, onSaveData, activeNode
                     }} />
 
                     {/* Universal Custom Tool Panel */}
-                    <Panel position="bottom-center" style={{ marginBottom: '24px' }}>
+                    <Panel position="bottom-center" className="custom-tool-panel">
                         <Flex gap="0" align="center" style={{ 
                             backgroundColor: 'white', 
-                            padding: '8px 12px', 
-                            borderRadius: '10px', 
+                            padding: '4px 6px', 
+                            borderRadius: '8px', 
                             border: '1px solid var(--gray-5)',
                             boxShadow: 'var(--shadow-4)',
                             color: '#111827'
                         }}>
                             {/* Group 1: Navigation */}
-                            <Flex gap="4" px="3" style={{ borderRight: '1px solid var(--gray-5)' }}>
+                            <Flex gap="2" px="2" style={{ borderRight: '1px solid var(--gray-5)' }}>
                                 <Tooltip content="Fit View to Screen">
-                                    <Button variant="ghost" size="1" onClick={() => fitView({ padding: 0.1, duration: 400 })} style={{ color: 'inherit', cursor: 'pointer', borderRadius: '10px' }}>
-                                        <Crosshair size={22} />
+                                    <Button variant="ghost" size="1" onClick={() => fitView({ padding: 0.1, duration: 400 })} style={{ color: 'inherit', cursor: 'pointer', borderRadius: '6px', width: '28px', height: '24px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <Crosshair size={15} />
                                     </Button>
                                 </Tooltip>
                                 <Tooltip content={isLocked ? "Unlock Layout" : "Lock Layout"}>
-                                    <Button variant="ghost" size="1" onClick={() => setIsLocked(!isLocked)} style={{ color: isLocked ? 'var(--accent-9)' : 'inherit', cursor: 'pointer', borderRadius: '10px' }}>
-                                        {isLocked ? <Lock size={22} /> : <Unlock size={22} />}
+                                    <Button variant="ghost" size="1" onClick={() => setIsLocked(!isLocked)} style={{ color: isLocked ? 'var(--accent-9)' : 'inherit', cursor: 'pointer', borderRadius: '6px', width: '28px', height: '24px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        {isLocked ? <Lock size={15} /> : <Unlock size={15} />}
                                     </Button>
                                 </Tooltip>
                             </Flex>
 
                             {/* Group 2: Zoom */}
-                            <Flex gap="4" px="3" style={{ borderRight: '1px solid var(--gray-5)' }}>
+                            <Flex gap="2" px="2" style={{ borderRight: '1px solid var(--gray-5)' }}>
                                 <Tooltip content="Zoom Out">
-                                    <Button variant="ghost" size="1" onClick={() => zoomOut()} style={{ color: 'inherit', cursor: 'pointer', borderRadius: '10px' }}><ZoomOut size={22} /></Button>
+                                    <Button variant="ghost" size="1" onClick={() => zoomOut()} style={{ color: 'inherit', cursor: 'pointer', borderRadius: '6px', width: '28px', height: '24px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ZoomOut size={15} /></Button>
                                 </Tooltip>
                                 <Tooltip content="Zoom In">
-                                    <Button variant="ghost" size="1" onClick={() => zoomIn()} style={{ color: 'inherit', cursor: 'pointer', borderRadius: '10px' }}><ZoomIn size={22} /></Button>
+                                    <Button variant="ghost" size="1" onClick={() => zoomIn()} style={{ color: 'inherit', cursor: 'pointer', borderRadius: '6px', width: '28px', height: '24px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ZoomIn size={15} /></Button>
                                 </Tooltip>
                             </Flex>
 
                             {/* Group 3: Interaction Modes */}
-                            <Flex gap="1" align="center" ml="2" style={{ backgroundColor: 'var(--gray-3)', borderRadius: '10px', padding: '3px' }}>
+                            <Flex gap="1" align="center" ml="1" style={{ backgroundColor: 'var(--gray-3)', borderRadius: '6px', padding: '2px' }}>
                                 <Tooltip content="Selection Mode (Select Multiple)">
                                     <Button 
                                         variant="ghost" 
                                         size="1" 
                                         onClick={() => setInteractionMode('select')}
                                         style={{ 
-                                            borderRadius: '8px', 
+                                            borderRadius: '5px', 
                                             backgroundColor: interactionMode === 'select' ? 'var(--accent-3)' : 'transparent',
                                             color: interactionMode === 'select' ? 'var(--accent-11)' : 'inherit',
                                             cursor: 'pointer',
-                                            width: '38px',
-                                            height: '28px',
+                                            width: '28px',
+                                            height: '22px',
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'center',
                                             '--button-ghost-hover-background': 'transparent'
                                         } as any}
                                     >
-                                        <MousePointer2 size={18} />
+                                        <MousePointer2 size={13} />
                                     </Button>
                                 </Tooltip>
                                 <Tooltip content="Panning Mode (Drag Map)">
@@ -355,30 +407,30 @@ function AgentWorkflowBuilderInternal({ initialNodesData, onSaveData, activeNode
                                         size="1" 
                                         onClick={() => setInteractionMode('pan')}
                                         style={{ 
-                                            borderRadius: '8px', 
+                                            borderRadius: '5px', 
                                             backgroundColor: interactionMode === 'pan' ? 'var(--accent-3)' : 'transparent',
                                             color: interactionMode === 'pan' ? 'var(--accent-11)' : 'inherit',
                                             cursor: 'pointer',
-                                            width: '38px',
-                                            height: '28px',
+                                            width: '28px',
+                                            height: '22px',
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'center',
                                             '--button-ghost-hover-background': 'transparent'
                                         } as any}
                                     >
-                                        <Hand size={18} />
+                                        <Hand size={13} />
                                     </Button>
                                 </Tooltip>
                             </Flex>
                         </Flex>
                     </Panel>
 
-                    <Panel position="top-right">
-                        <Flex gap="3" p="3" style={{ backgroundColor: 'var(--gray-2)', borderRadius: 'var(--radius-3)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                    <Panel position="top-right" className="custom-top-panel">
+                        <Flex gap="2" p="2" style={{ backgroundColor: 'var(--gray-2)', borderRadius: 'var(--radius-3)', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
                             <DropdownMenu.Root>
                                 <DropdownMenu.Trigger>
-                                    <Button variant="soft"><Plus size={16} /> Add Task Node</Button>
+                                    <Button variant="soft" className="responsive-add-btn"><Plus size={14} /> Add Task Node</Button>
                                 </DropdownMenu.Trigger>
                                 <DropdownMenu.Content>
                                     <DropdownMenu.Item onClick={() => addNewTask('collect')}><Activity size={14} style={{ marginRight: 8 }} /> Collect Target Data</DropdownMenu.Item>
@@ -395,11 +447,11 @@ function AgentWorkflowBuilderInternal({ initialNodesData, onSaveData, activeNode
 
             {/* Properties Editor Sidebar (Vapi-style) */}
             {(selectedNode || selectedEdge) && (
-                <Card style={{ width: '320px', height: '100%', overflowY: 'auto' }}>
+                <Card className="properties-sidebar">
                     <Flex direction="column" gap="4" p="2">
                         <Flex align="center" gap="2">
                             <Settings2 size={18} />
-                            <Heading size="4">{selectedNode ? 'Node Settings' : 'Condition Logic'}</Heading>
+                            <Heading size="4" style={{ color: '#111827' }}>{selectedNode ? 'Node Settings' : 'Condition Logic'}</Heading>
                         </Flex>
 
                         {selectedNode && (

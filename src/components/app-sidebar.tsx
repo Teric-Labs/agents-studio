@@ -37,17 +37,34 @@ const NAV_ITEMS = [
 ]
 
 const sidebarMenuButtonStyles = `
+  .sidebar-item {
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    border-radius: 8px !important;
+    margin: 2px 8px !important;
+    width: calc(100% - 16px) !important;
+  }
+  .sidebar-item svg {
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s ease !important;
+  }
+  .sidebar-item[data-active="true"] {
+    background-color: #fffbeb !important;
+  }
   .sidebar-item[data-active="true"] svg {
-    color: #ffffff !important;
+    color: #b45309 !important;
   }
   .sidebar-item[data-active="true"] span {
-    color: #ffffff !important;
+    color: #b45309 !important;
+    font-weight: 700 !important;
+  }
+  .sidebar-item:not([data-active="true"]):hover {
+    background-color: rgba(0, 0, 0, 0.03) !important;
   }
   .sidebar-item:not([data-active="true"]):hover svg {
-    color: #ffffff !important;
+    color: #b45309 !important;
+    transform: translateX(2px);
   }
   .sidebar-item:not([data-active="true"]):hover span {
-    color: #ffffff !important;
+    color: #111827 !important;
   }
 `
 
@@ -76,15 +93,15 @@ export function AppSidebar({
       <style>{sidebarMenuButtonStyles}</style>
       <Sidebar collapsible="icon">
       {/* ── Header ── */}
-      <SidebarHeader className="p-3">
-        <div className={`flex items-center ${collapsed ? "justify-center" : "gap-2"} px-1`}>
-          <img src={phosaiLogo} alt="" className="h-8 w-8 shrink-0 object-contain" />
+      <SidebarHeader className="p-4 pb-2">
+        <div className={`flex items-center ${collapsed ? "justify-center" : "gap-3"} px-1`}>
+          <img src={phosaiLogo} alt="" className="h-10 w-10 shrink-0 object-contain" />
           {!collapsed && (
-            <span className="text-sm font-extrabold tracking-wider text-white">PhosAI Studio</span>
+            <span className="text-lg font-bold tracking-tight text-zinc-900">PhosAI Studio</span>
           )}
         </div>
       </SidebarHeader>
-      <SidebarSeparator className="mx-3 bg-white/10" />
+      <SidebarSeparator className="mx-4 bg-zinc-100" />
 
       {/* ── Navigation ── */}
       <SidebarContent>
@@ -114,7 +131,7 @@ export function AppSidebar({
       </SidebarContent>
 
       {/* ── Footer (user profile) ── */}
-      <SidebarFooter className="border-t border-white/10 p-3">
+      <SidebarFooter className="border-t border-zinc-200 p-3">
         {collapsed ? (
           <SidebarMenu>
             <SidebarMenuItem>
@@ -136,8 +153,7 @@ export function AppSidebar({
                 )}
                 <button
                   onClick={onSignOut}
-                  className="flex items-center justify-center rounded-md p-1.5"
-                  style={{ backgroundColor: "#f0ad44", color: "#161617" }}
+                  className="flex items-center justify-center rounded-md p-1.5 text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900"
                 >
                   <LogOut size={14} />
                 </button>
@@ -163,9 +179,9 @@ export function AppSidebar({
                 </div>
               )}
               <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-bold text-white">{profileDisplayName}</div>
+                <div className="truncate text-sm font-bold text-zinc-900">{profileDisplayName}</div>
                 {profileEmail && (
-                  <div className="truncate text-xs font-medium text-white/70" title={profileEmail}>
+                  <div className="truncate text-xs font-medium text-zinc-500" title={profileEmail}>
                     {profileEmail}
                   </div>
                 )}
@@ -173,8 +189,7 @@ export function AppSidebar({
             </div>
             <button
               onClick={onSignOut}
-              className="flex w-full items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-semibold"
-              style={{ backgroundColor: "#f0ad44", color: "#161617" }}
+              className="flex w-full items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900"
             >
               <LogOut size={14} /> Sign out
             </button>

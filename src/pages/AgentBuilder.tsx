@@ -472,7 +472,7 @@ export default function App() {
 	// Fetch Google OAuth connection status
 	const fetchGoogleConnectionStatus = async () => {
 		try {
-			const userId = localStorage.getItem('user_id');
+			const userId = user?.uid || localStorage.getItem('user_id');
 			if (!userId) {
 				setGoogleConnected(false);
 				return;
@@ -487,6 +487,13 @@ export default function App() {
 			setGoogleConnected(false);
 		}
 	};
+
+	// Fetch Google connection status when Firebase user is loaded or changed
+	useEffect(() => {
+		if (user?.uid) {
+			fetchGoogleConnectionStatus();
+		}
+	}, [user]);
 
 	// Initiate Google OAuth
 	const initiateGoogleOAuth = async () => {
@@ -1532,6 +1539,14 @@ export default function App() {
 				@media (max-width: 900px) {
 					.hide-on-tablet { display: none !important; }
 				}
+				.workflow-designer-container {
+					height: calc(100vh - 65px) !important;
+				}
+				@media (max-width: 640px) {
+					.workflow-designer-container {
+						height: calc(100vh - 110px) !important;
+					}
+				}
 				.animate-spin {
 					animation: spin 1s linear infinite;
 				}
@@ -1598,16 +1613,12 @@ export default function App() {
 		`}</style>
 				<div className="flex h-screen flex-col overflow-auto">
 					{/* Header */}
-					<header style={{
-						padding: '12px 18px',
-						backgroundColor: '#161617',
-						borderBottom: '1px solid #2e303a',
-						display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-						position: 'sticky', top: 0, zIndex: 10
-					}}>
+					<header 
+						className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sticky top-0 z-10 bg-white border-b border-zinc-200 p-3 sm:px-[18px] sm:py-3"
+					>
 						<Box style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
 							<Box display={{ initial: 'block', lg: 'none' }}>
-								<SidebarTrigger className="text-white [&_svg]:text-white" />
+								<SidebarTrigger className="text-zinc-900 [&_svg]:text-zinc-900" />
 							</Box>
 							<Box>
 								{activeView === 'workflows' && editingWorkflowId ? (
@@ -1621,46 +1632,46 @@ export default function App() {
 											onChange={e => setWorkflowName(e.target.value)}
 											size="2"
 											variant="soft"
-											style={{ fontWeight: 800, fontSize: '18px', color: '#ffffff', minWidth: '200px' }}
+											style={{ fontWeight: 800, fontSize: '18px', color: '#111827', minWidth: '200px' }}
 										/>
 									</Flex>
 								) : (
 									<>
-										<Heading size="4" style={{ margin: 0, fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em' }}>
+										<Heading size="4" style={{ margin: 0, fontWeight: 800, color: '#111827', letterSpacing: '-0.02em' }}>
 											{activeView === 'dashboard' ? 'Overview' : activeView === 'knowledge' ? 'Knowledge Management' : activeView === 'workflows' ? 'Workflow Designer' : activeView === 'logs' ? 'Conversations' : 'Agent Builder'}
 										</Heading>
 									<Box display={{ initial: 'none', sm: 'block' }}>
-										<Text size="1" style={{ color: '#ffffff', marginTop: '2px', fontWeight: 500 }}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} — {user ? `Welcome back, ${profileDisplayName}.` : 'Welcome back.'}</Text>
+										<Text size="1" style={{ color: '#4b5563', marginTop: '2px', fontWeight: 500 }}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} — {user ? `Welcome back, ${profileDisplayName}.` : 'Welcome back.'}</Text>
 									</Box>
 									</>
 								)}
 							</Box>
 						</Box>
-						<Flex align="center" gap="4">
-							<Box display={{ initial: 'none', md: 'block' }}>
+						<Flex align="center" gap={{ initial: '2', sm: '4' }} justify={{ initial: 'start', sm: 'end' }} style={{ flexGrow: 1 }}>
+							<Box display={{ initial: 'none', lg: 'block' }}>
 								<Flex align="center" gap="2">
-								<Text size="1" style={{ color: '#ffffff' }}>Status</Text>
+								<Text size="1" style={{ color: '#4b5563' }}>Status</Text>
 									<Badge color={connectionStatus === 'connected' ? 'amber' : 'gray'} variant="soft">
 										{connectionStatus === 'connected' ? 'Online' : 'Offline'}
 									</Badge>
 								</Flex>
 							</Box>
-							<Box display={{ initial: 'none', md: 'block' }}>
-								<Separator orientation="vertical" style={{ height: '24px', backgroundColor: '#2e303a' }} />
+							<Box display={{ initial: 'none', lg: 'block' }}>
+								<Separator orientation="vertical" style={{ height: '24px', backgroundColor: '#e5e7eb' }} />
 							</Box>
 							{!user ? (
 								<Flex gap="2">
-									<Button variant="ghost" size="2" style={{ color: '#ffffff' }} onClick={() => window.location.href = '/'}>Sign In</Button>
-									<Button size="2" style={{ backgroundColor: '#f0ad44', color: '#161617', fontWeight: 600, cursor: 'pointer' }} onClick={() => window.location.href = '/'}>Sign Up</Button>
+									<Button variant="ghost" size={{ initial: '1', sm: '2' }} style={{ color: '#374151' }} onClick={() => window.location.href = '/'}>Sign In</Button>
+									<Button size={{ initial: '1', sm: '2' }} style={{ backgroundColor: '#f0ad44', color: '#161617', fontWeight: 600, cursor: 'pointer' }} onClick={() => window.location.href = '/'}>Sign Up</Button>
 								</Flex>
 							) : null}
 
 							{activeView === 'workflows' ? (
-								<Flex gap="3" align="center" wrap="wrap" justify={{ initial: 'start', sm: 'end' }}>
-									{editingWorkflowId && <Button variant="ghost" style={{ color: '#ffffff' }} onClick={() => setEditingWorkflowId(null)} size="2"><LogOut size={16} /> Exit Designer</Button>}
-									<Button variant="solid" style={{ backgroundColor: '#f0ad44', color: '#161617', fontWeight: 600, cursor: 'pointer' }} onClick={() => loadWorkflowsList()} size="2"><RefreshCw size={16} /> Reload</Button>
+								<Flex gap={{ initial: '2', sm: '3' }} align="center" wrap="wrap" justify={{ initial: 'start', sm: 'end' }} style={{ width: '100%' }}>
+									{editingWorkflowId && <Button variant="ghost" style={{ color: '#374151' }} onClick={() => setEditingWorkflowId(null)} size={{ initial: '1', sm: '2' }}><LogOut size={14} /> Exit Designer</Button>}
+									<Button variant="solid" style={{ backgroundColor: '#f0ad44', color: '#161617', fontWeight: 600, cursor: 'pointer' }} onClick={() => loadWorkflowsList()} size={{ initial: '1', sm: '2' }}><RefreshCw size={14} /> Reload</Button>
 									{editingWorkflowId && (
-										<Button variant="solid" style={{ backgroundColor: '#f0ad44', color: '#161617', paddingLeft: '16px', paddingRight: '16px', fontWeight: 600, cursor: 'pointer' }} onClick={async () => {
+										<Button variant="solid" style={{ backgroundColor: '#f0ad44', color: '#161617', paddingLeft: '12px', paddingRight: '12px', fontWeight: 600, cursor: 'pointer' }} onClick={async () => {
 											if (!workflowName.trim()) {
 												showToast("Naming Required", "Please provide a name for your workflow in the header.");
 												return;
@@ -1680,20 +1691,20 @@ export default function App() {
 												console.error('Save failed', e);
 												showToast("Save Failed", "There was an error saving the workflow.");
 											} finally { setIsLoading(false); }
-										}} size="2"><Save size={16} /> Save Workflow</Button>
+										}} size={{ initial: '1', sm: '2' }}><Save size={14} /> Save Workflow</Button>
 									)}
 								</Flex>
 							) : (
 								<Flex align="center" gap="4">
-									<Search size={18} color="#ffffff" style={{ cursor: 'pointer' }} />
-									<Bell size={18} color="#ffffff" style={{ cursor: 'pointer' }} />
+									<Search size={18} color="#374151" style={{ cursor: 'pointer' }} />
+									<Bell size={18} color="#374151" style={{ cursor: 'pointer' }} />
 								</Flex>
 							)}
 						</Flex>
 					</header>
 
 					{activeView !== 'agent-detail' && (
-						<Box p={{ initial: "3", md: "4", lg: "5" }}>
+						<Box p={activeView === 'workflows' && editingWorkflowId ? "0" : { initial: "3", md: "4", lg: "5" }}>
 						{activeView === 'dashboard' ? (
 							<Flex direction="column" gap="4">
 								{/* Metrics */}
@@ -1757,7 +1768,12 @@ export default function App() {
 						) : activeView === 'knowledge' ? (
 							<KnowledgeBaseManager />
 						) : activeView === 'workflows' ? (
-							<Flex direction="column" gap="4" style={{ height: editingWorkflowId ? 'calc(100vh - 180px)' : 'auto' }}>
+							<Flex 
+								direction="column" 
+								gap={editingWorkflowId ? "0" : "4"} 
+								className={editingWorkflowId ? "workflow-designer-container" : ""}
+								style={{ height: editingWorkflowId ? undefined : 'auto' }}
+							>
 								{!editingWorkflowId ? (
 									<Card size="2" style={{ borderRadius: 'var(--radius-2)', backgroundColor: 'white', border: '1px solid #e8e5e0' }}>
 										<Flex direction={{ initial: 'column', md: 'row' }} justify="between" align={{ initial: 'stretch', md: 'center' }} gap="4" mb="5">
@@ -1891,7 +1907,7 @@ export default function App() {
 										)}
 									</Card>
 								) : (
-									<Card size="1" style={{ borderRadius: 'var(--radius-2)', backgroundColor: 'white', border: '1px solid #e8e5e0', height: '100%', overflow: 'hidden', padding: 0 }}>
+									<Box style={{ backgroundColor: 'white', height: '100%', overflow: 'hidden', padding: 0 }}>
 										<Box style={{ height: '100%', width: '100%' }}>
 											<AgentWorkflowBuilder
 												initialNodesData={workflowsPayload}
@@ -1899,7 +1915,7 @@ export default function App() {
 												activeNodeId={activeNodeId}
 											/>
 										</Box>
-									</Card>
+									</Box>
 								)}
 							</Flex>
 						) : activeView === 'logs' ? (
@@ -2255,19 +2271,19 @@ export default function App() {
 									{/* Google Workspace Card */}
 									<Card size="3" style={{ borderRadius: '12px', border: '1px solid #e5e7eb', backgroundColor: '#ffffff', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)' }}>
 										<Flex direction="column" gap="4">
-											<Flex justify="between" align="center">
-												<Flex align="center" gap="3">
-													<div style={{ display: 'flex', gap: '4px', alignItems: 'center', backgroundColor: '#f3f4f6', padding: '6px 10px', borderRadius: '10px' }}>
+											<Flex direction={{ initial: 'column', sm: 'row' }} justify="between" align={{ initial: 'start', sm: 'center' }} gap="3">
+												<Flex align="center" gap="3" style={{ width: '100%' }}>
+													<div style={{ display: 'flex', gap: '4px', alignItems: 'center', backgroundColor: '#f3f4f6', padding: '6px 10px', borderRadius: '10px', flexShrink: 0 }}>
 														<img src={GmailIcon} alt="Gmail" style={{ width: '18px', height: '18px' }} />
 														<img src={GoogleCalendarIcon} alt="Calendar" style={{ width: '18px', height: '18px' }} />
 														<img src={GoogleSheetsIcon} alt="Sheets" style={{ width: '18px', height: '18px' }} />
 													</div>
-													<Box>
-														<Text size="3" weight="bold" style={{ color: '#111827' }}>Google Workspace</Text>
-														<Text size="1" style={{ color: '#6b7280', display: 'block' }}>Connect Gmail, Calendar, and Sheets</Text>
+													<Box style={{ minWidth: 0, flex: 1 }}>
+														<Text size="3" weight="bold" style={{ color: '#111827', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Google Workspace</Text>
+														<Text size="1" style={{ color: '#6b7280', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Connect Gmail, Calendar, and Sheets</Text>
 													</Box>
 												</Flex>
-												<Badge color={googleConnected ? 'green' : 'gray'} variant="soft" radius="full" size="2" style={{ fontWeight: 700 }}>
+												<Badge color={googleConnected ? 'green' : 'gray'} variant="soft" radius="full" size="2" style={{ fontWeight: 700, flexShrink: 0 }}>
 													{googleConnected ? 'Connected' : 'Not Connected'}
 												</Badge>
 											</Flex>
@@ -2328,17 +2344,17 @@ export default function App() {
 									{/* Placeholder Card for Future Integrations to look premium */}
 									<Card size="3" style={{ borderRadius: '12px', border: '1px solid #e5e7eb', backgroundColor: '#fafafa', opacity: 0.7, cursor: 'not-allowed' }}>
 										<Flex direction="column" gap="4">
-											<Flex justify="between" align="center">
-												<Flex align="center" gap="3">
-													<div style={{ padding: '8px', borderRadius: '10px', backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center' }}>
+											<Flex direction={{ initial: 'column', sm: 'row' }} justify="between" align={{ initial: 'start', sm: 'center' }} gap="3">
+												<Flex align="center" gap="3" style={{ width: '100%' }}>
+													<div style={{ padding: '8px', borderRadius: '10px', backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
 														<Phone size={24} style={{ color: '#9ca3af' }} />
 													</div>
-													<Box>
-														<Text size="3" weight="bold" style={{ color: '#374151' }}>Twilio Telephony</Text>
-														<Text size="1" style={{ color: '#9ca3af', display: 'block' }}>Make and receive phone calls via agent</Text>
+													<Box style={{ minWidth: 0, flex: 1 }}>
+														<Text size="3" weight="bold" style={{ color: '#374151', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Twilio Telephony</Text>
+														<Text size="1" style={{ color: '#9ca3af', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Make and receive phone calls via agent</Text>
 													</Box>
 												</Flex>
-												<Badge color="gray" variant="soft" radius="full" size="2">
+												<Badge color="gray" variant="soft" radius="full" size="2" style={{ flexShrink: 0 }}>
 													Coming Soon
 												</Badge>
 											</Flex>
