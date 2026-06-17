@@ -443,22 +443,47 @@ export default function App() {
 	// Initiate Google OAuth
 	const initiateGoogleOAuth = async () => {
 		try {
-			// Pass the Firebase UID so the backend stores tokens under the correct account.
-			// The agent worker also uses the Firebase UID when looking up credentials.
 			const firebaseUid = user?.uid;
 			if (!firebaseUid) {
 				console.error('No Firebase user — cannot connect Google account');
 				return;
 			}
 
+			// ══ SAVE FORM STATE before navigating away ══
+			// A full-page redirect wipes all React state. We persist everything
+			// the user has typed/selected so it can be restored on return.
+			const snapshot = {
+				agentName,
+				instructions,
+				welcomeMessage,
+				allowInterruption,
+				providerConfigs,
+				selectedProviders,
+				agentType,
+				selectedWorkflowId,
+				creationStep,
+				agentCategory,
+				agentIndustry,
+				agentUseCase,
+				chatOnly,
+				visualizerType,
+				brandColor,
+				toolsEnabled,
+				selectedToolCategories,
+				webSearchEnabled,
+				tavilyApiKey,
+				activeView,
+				// If editing an existing agent, keep track of it
+				currentAgentId: currentAgent?.id || null,
+			};
+			sessionStorage.setItem('oauth_form_snapshot', JSON.stringify(snapshot));
+
 			const response = await axios.post(`${API_BASE}/google/authorize`, { user_id: firebaseUid });
 			const { authorization_url } = response.data;
 
-			// Store Firebase UID so fetchGoogleConnectionStatus can use it
 			localStorage.setItem('user_id', firebaseUid);
 
-			// Redirect in the same tab — standard OAuth flow.
-			// The backend will redirect back here with ?google_connected=1 when done.
+			// Redirect in the same tab — backend will send us back with ?google_connected=1
 			window.location.href = authorization_url;
 		} catch (error) {
 			console.error('Failed to initiate Google OAuth:', error);
@@ -487,13 +512,44 @@ export default function App() {
 	useEffect(() => {
 		const params = new URLSearchParams(window.location.search);
 		if (params.get('google_connected') === '1') {
-			// Came back from Google OAuth — refresh status and clean URL
+			// ══ RESTORE FORM STATE saved before OAuth redirect ══
+			const raw = sessionStorage.getItem('oauth_form_snapshot');
+			if (raw) {
+				try {
+					const snap = JSON.parse(raw);
+					if (snap.agentName !== undefined)           setAgentName(snap.agentName);
+					if (snap.instructions !== undefined)       setInstructions(snap.instructions);
+					if (snap.welcomeMessage !== undefined)     setWelcomeMessage(snap.welcomeMessage);
+					if (snap.allowInterruption !== undefined)  setAllowInterruption(snap.allowInterruption);
+					if (snap.providerConfigs !== undefined)    setProviderConfigs(snap.providerConfigs);
+					if (snap.selectedProviders !== undefined)  setSelectedProviders(snap.selectedProviders);
+					if (snap.agentType !== undefined)          setAgentType(snap.agentType);
+					if (snap.selectedWorkflowId !== undefined) setSelectedWorkflowId(snap.selectedWorkflowId);
+					if (snap.creationStep !== undefined)       setCreationStep(snap.creationStep);
+					if (snap.agentCategory !== undefined)      setAgentCategory(snap.agentCategory);
+					if (snap.agentIndustry !== undefined)      setAgentIndustry(snap.agentIndustry);
+					if (snap.agentUseCase !== undefined)       setAgentUseCase(snap.agentUseCase);
+					if (snap.chatOnly !== undefined)           setChatOnly(snap.chatOnly);
+					if (snap.visualizerType !== undefined)     setVisualizerType(snap.visualizerType);
+					if (snap.brandColor !== undefined)         setBrandColor(snap.brandColor);
+					if (snap.toolsEnabled !== undefined)       setToolsEnabled(snap.toolsEnabled);
+					if (snap.selectedToolCategories !== undefined) setSelectedToolCategories(snap.selectedToolCategories);
+					if (snap.webSearchEnabled !== undefined)   setWebSearchEnabled(snap.webSearchEnabled);
+					if (snap.tavilyApiKey !== undefined)       setTavilyApiKey(snap.tavilyApiKey);
+					if (snap.activeView !== undefined)         setActiveView(snap.activeView);
+				} catch (e) {
+					console.warn('Could not restore OAuth form snapshot:', e);
+				} finally {
+					sessionStorage.removeItem('oauth_form_snapshot');
+				}
+			}
+
+			// Clean ?google_connected=1 from the URL
 			const cleanUrl = window.location.pathname + window.location.hash;
 			window.history.replaceState({}, '', cleanUrl);
-			// Ensure user_id is set from Firebase UID
-			if (user?.uid) {
-				localStorage.setItem('user_id', user.uid);
-			}
+
+			// Ensure Firebase UID is saved and refresh the connection badge
+			if (user?.uid) localStorage.setItem('user_id', user.uid);
 			fetchGoogleConnectionStatus();
 		} else if (toolsEnabled) {
 			fetchGoogleConnectionStatus();
