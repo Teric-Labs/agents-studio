@@ -502,6 +502,7 @@ export default function App() {
 			localStorage.setItem('oauth_return_ctx', JSON.stringify({
 				activeView,
 				creationStep,
+				currentAgent,
 				agentName,
 				instructions,
 				welcomeMessage,
@@ -562,25 +563,27 @@ export default function App() {
 			try {
 				const ctx = JSON.parse(raw);
 				// Navigation state — most critical
-				if (ctx.activeView)   dispatch(setActiveView(ctx.activeView));
-				if (ctx.creationStep) dispatch(setCreationStep(ctx.creationStep));
+				if (ctx.activeView)   setActiveView(ctx.activeView);
+				if (ctx.creationStep) setCreationStep(ctx.creationStep);
+				// Local volatile state
+				if (ctx.currentAgent) setCurrentAgent(ctx.currentAgent);
 				// Form fields
-				if (ctx.agentName !== undefined)              dispatch(setAgentName(ctx.agentName));
-				if (ctx.instructions !== undefined)           dispatch(setInstructions(ctx.instructions));
-				if (ctx.welcomeMessage !== undefined)         dispatch(setWelcomeMessage(ctx.welcomeMessage));
-				if (ctx.allowInterruption !== undefined)      dispatch(setAllowInterruption(ctx.allowInterruption));
-				if (ctx.agentType !== undefined)              dispatch(setAgentType(ctx.agentType));
-				if (ctx.selectedWorkflowId !== undefined)     dispatch(setSelectedWorkflowId(ctx.selectedWorkflowId));
-				if (ctx.agentCategory !== undefined)          dispatch(setAgentCategory(ctx.agentCategory));
-				if (ctx.agentIndustry !== undefined)          dispatch(setAgentIndustry(ctx.agentIndustry));
-				if (ctx.agentUseCase !== undefined)           dispatch(setAgentUseCase(ctx.agentUseCase));
-				if (ctx.chatOnly !== undefined)               dispatch(setChatOnly(ctx.chatOnly));
-				if (ctx.visualizerType !== undefined)         dispatch(setVisualizerType(ctx.visualizerType));
-				if (ctx.brandColor !== undefined)             dispatch(setBrandColor(ctx.brandColor));
-				if (ctx.toolsEnabled !== undefined)           dispatch(setToolsEnabled(ctx.toolsEnabled));
-				if (ctx.selectedToolCategories !== undefined) dispatch(setSelectedToolCategories(ctx.selectedToolCategories));
-				if (ctx.webSearchEnabled !== undefined)       dispatch(setWebSearchEnabled(ctx.webSearchEnabled));
-				if (ctx.tavilyApiKey !== undefined)           dispatch(setTavilyApiKey(ctx.tavilyApiKey));
+				if (ctx.agentName !== undefined)              setAgentName(ctx.agentName);
+				if (ctx.instructions !== undefined)           setInstructions(ctx.instructions);
+				if (ctx.welcomeMessage !== undefined)         setWelcomeMessage(ctx.welcomeMessage);
+				if (ctx.allowInterruption !== undefined)      setAllowInterruption(ctx.allowInterruption);
+				if (ctx.agentType !== undefined)              setAgentType(ctx.agentType);
+				if (ctx.selectedWorkflowId !== undefined)     setSelectedWorkflowId(ctx.selectedWorkflowId);
+				if (ctx.agentCategory !== undefined)          setAgentCategory(ctx.agentCategory);
+				if (ctx.agentIndustry !== undefined)          setAgentIndustry(ctx.agentIndustry);
+				if (ctx.agentUseCase !== undefined)           setAgentUseCase(ctx.agentUseCase);
+				if (ctx.chatOnly !== undefined)               setChatOnly(ctx.chatOnly);
+				if (ctx.visualizerType !== undefined)         setVisualizerType(ctx.visualizerType);
+				if (ctx.brandColor !== undefined)             setBrandColor(ctx.brandColor);
+				if (ctx.toolsEnabled !== undefined)           setToolsEnabled(ctx.toolsEnabled);
+				if (ctx.selectedToolCategories !== undefined) setSelectedToolCategories(ctx.selectedToolCategories);
+				if (ctx.webSearchEnabled !== undefined)       setWebSearchEnabled(ctx.webSearchEnabled);
+				if (ctx.tavilyApiKey !== undefined)           setTavilyApiKey(ctx.tavilyApiKey);
 			} catch (e) {
 				console.warn('Could not restore OAuth return context:', e);
 			} finally {
@@ -820,7 +823,7 @@ export default function App() {
 			else if (voiceId.includes('wol')) previewText = "Nanga def! Man dama aw batou PhosAI, biy dox ak sunu teknoloji bu bees bi di text-to-speech. Pare na pour jox dund sa agent.";
 			else if (voiceId.includes('pcm')) previewText = "How far! I be PhosAI voice, powered by our advanced text-to-speech technology. I ready to bring your agent to life.";
 
-			const response = await fetch(`${PHOSAI_TTS_URL}/v1/audio/speech/stream`, {
+			const response = await fetch(`${API_BASE}/v1/audio/speech/stream`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
@@ -861,7 +864,7 @@ export default function App() {
 			if (cloneRefText.trim()) formData.append('reference_text', cloneRefText);
 			formData.append('temperature', '0.1');
 
-			const response = await fetch(`${PHOSAI_TTS_URL}/v1/audio/speech/clone/upload`, {
+			const response = await fetch(`${API_BASE}/v1/audio/speech/clone/upload`, {
 				method: 'POST',
 				body: formData
 			});
