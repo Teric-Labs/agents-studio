@@ -23,6 +23,7 @@ import {
   Workflow,
   History,
   LogOut,
+  Sliders,
 } from "lucide-react"
 
 const NAV_ITEMS = [
@@ -31,6 +32,7 @@ const NAV_ITEMS = [
   { id: "voices", label: "Voice Library", icon: Mic },
   { id: "workflows", label: "Workflows", icon: Workflow },
   { id: "knowledge", label: "Knowledge Base", icon: Book },
+  { id: "integrations", label: "Integrations", icon: Sliders },
   { id: "logs", label: "Conversations", icon: History },
 ]
 

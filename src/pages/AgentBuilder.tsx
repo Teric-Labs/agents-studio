@@ -253,6 +253,7 @@ export default function App() {
 
 	// Local React state (volatile UI — no need to survive redirect)
 	const [currentAgent, setCurrentAgent] = useState<any>(null);
+	const [activeConfigTab, setActiveConfigTab] = useState('instructions');
 	const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 	const [editingWorkflowId, setEditingWorkflowId] = useState<string | null>(null);
 	const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -497,28 +498,8 @@ export default function App() {
 			}
 
 			// Explicitly save the return context to localStorage.
-			// localStorage survives cross-origin navigation in the same tab.
-			// Redux-persist also saves state, but this is an explicit fallback.
 			localStorage.setItem('oauth_return_ctx', JSON.stringify({
-				activeView,
-				creationStep,
-				currentAgent,
-				agentName,
-				instructions,
-				welcomeMessage,
-				allowInterruption,
-				agentType,
-				selectedWorkflowId,
-				agentCategory,
-				agentIndustry,
-				agentUseCase,
-				chatOnly,
-				visualizerType,
-				brandColor,
-				toolsEnabled,
-				selectedToolCategories,
-				webSearchEnabled,
-				tavilyApiKey,
+				activeView: 'integrations',
 			}));
 
 			const response = await axios.post(`${API_BASE}/google/authorize`, { user_id: firebaseUid });
@@ -549,6 +530,13 @@ export default function App() {
 		}
 	};
 
+	// Fetch Google status when integrations page is active
+	useEffect(() => {
+		if (activeView === 'integrations') {
+			fetchGoogleConnectionStatus();
+		}
+	}, [activeView]);
+
 	// ── OAuth return: restore nav state from localStorage, clean URL, refresh badge
 	useEffect(() => {
 		const params = new URLSearchParams(window.location.search);
@@ -562,12 +550,15 @@ export default function App() {
 			if (isCallbackRoute && code && state) {
 				try {
 					// Forward the code and state to our backend callback proxy endpoint!
-					const res = await fetch(`${API_BASE}/auth/google/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}&json=1`);
-					if (!res.ok) {
+					const res = await fetch(
+						`${API_BASE}/auth/google/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}&json=1`,
+						{ redirect: 'manual' }
+					);
+					if (!res.ok && res.status !== 0 && res.status !== 302) {
 						throw new Error(`Backend callback returned status ${res.status}`);
 					}
 					// Once successfully processed by backend, proceed with rehydration
-					restoreContext();
+					restoreContext(true);
 				} catch (err) {
 					console.error("Failed to process Google OAuth callback:", err);
 					showToast("Connection Failed", "Failed to connect Google account. Please try again.");
@@ -576,11 +567,11 @@ export default function App() {
 				}
 			} else if (params.get('google_connected') === '1' || isCallbackRoute) {
 				// Fallback if google_connected query parameter is present, or if it is the callback route without code (already processed)
-				restoreContext();
+				restoreContext(true);
 			}
 		};
 
-		const restoreContext = () => {
+		const restoreContext = (isOAuthReturn = false) => {
 			// Clean the URL immediately to the clean domain (remove callback path and query params)
 			window.history.replaceState({}, '', window.location.origin + window.location.hash);
 
@@ -594,6 +585,14 @@ export default function App() {
 					if (ctx.creationStep) setCreationStep(ctx.creationStep);
 					// Local volatile state
 					if (ctx.currentAgent) setCurrentAgent(ctx.currentAgent);
+
+					// If returning from Google OAuth, and activeView is NOT integrations, take user to the Tools & Integrations tab
+					if (isOAuthReturn && ctx.activeView !== 'integrations') {
+						setActiveConfigTab('tools');
+					} else if (ctx.activeConfigTab) {
+						setActiveConfigTab(ctx.activeConfigTab);
+					}
+
 					// Form fields
 					if (ctx.agentName !== undefined)              setAgentName(ctx.agentName);
 					if (ctx.instructions !== undefined)           setInstructions(ctx.instructions);
@@ -615,6 +614,10 @@ export default function App() {
 					console.warn('Could not restore OAuth return context:', e);
 				} finally {
 					localStorage.removeItem('oauth_return_ctx');
+				}
+			} else {
+				if (isOAuthReturn) {
+					setActiveView('integrations');
 				}
 			}
 
@@ -1017,6 +1020,7 @@ export default function App() {
 			setActiveView('builder');
 			// Reset Creation Flow
 			setCreationStep('CATEGORY');
+			setActiveConfigTab('instructions');
 			setAgentUseCase('');
 			setChatOnly(false);
 			setVisualizerType('bar');
@@ -1075,6 +1079,7 @@ export default function App() {
 			setVisualizerType((agent.config.visualizer_type === 'circle' || agent.config.visualizer_type === 'bars') ? 'bar' : agent.config.visualizer_type || 'bar');
 			setBrandColor(agent.config.brand_color || '#f0ad44');
 			setCreationStep('CONFIG');
+			setActiveConfigTab('instructions');
 
 			if (canOpenModal) {
 				setActiveView('agent-detail');
@@ -2239,6 +2244,112 @@ export default function App() {
 									</Grid>
 								</Box>
 							</Box>
+						) : activeView === 'integrations' ? (
+							<Box>
+								<Box mb="6">
+									<Heading size="5" style={{ color: '#111827', fontWeight: 800 }}>Integrations</Heading>
+									<Text size="2" style={{ color: '#6b7280' }}>Connect your external accounts and manage global tools integrations.</Text>
+								</Box>
+
+								<Grid columns={{ initial: '1', md: '2' }} gap="4">
+									{/* Google Workspace Card */}
+									<Card size="3" style={{ borderRadius: '12px', border: '1px solid #e5e7eb', backgroundColor: '#ffffff', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)' }}>
+										<Flex direction="column" gap="4">
+											<Flex justify="between" align="center">
+												<Flex align="center" gap="3">
+													<div style={{ display: 'flex', gap: '4px', alignItems: 'center', backgroundColor: '#f3f4f6', padding: '6px 10px', borderRadius: '10px' }}>
+														<img src={GmailIcon} alt="Gmail" style={{ width: '18px', height: '18px' }} />
+														<img src={GoogleCalendarIcon} alt="Calendar" style={{ width: '18px', height: '18px' }} />
+														<img src={GoogleSheetsIcon} alt="Sheets" style={{ width: '18px', height: '18px' }} />
+													</div>
+													<Box>
+														<Text size="3" weight="bold" style={{ color: '#111827' }}>Google Workspace</Text>
+														<Text size="1" style={{ color: '#6b7280', display: 'block' }}>Connect Gmail, Calendar, and Sheets</Text>
+													</Box>
+												</Flex>
+												<Badge color={googleConnected ? 'green' : 'gray'} variant="soft" radius="full" size="2" style={{ fontWeight: 700 }}>
+													{googleConnected ? 'Connected' : 'Not Connected'}
+												</Badge>
+											</Flex>
+
+											<Separator size="4" />
+
+											{googleConnected ? (
+												<Flex direction="column" gap="3">
+													<Text size="2" weight="bold" style={{ color: '#374151' }}>Active Permissions (Scopes)</Text>
+													<Box style={{ backgroundColor: '#f9fafb', padding: '12px', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+														<Flex direction="column" gap="2">
+															<Flex align="center" gap="2">
+																<div style={{ width: '6px', height: '6px', backgroundColor: '#f0ad44', borderRadius: '50%' }} />
+																<Text size="1" style={{ color: '#4b5563' }}>Read, send and manage emails (Gmail)</Text>
+															</Flex>
+															<Flex align="center" gap="2">
+																<div style={{ width: '6px', height: '6px', backgroundColor: '#f0ad44', borderRadius: '50%' }} />
+																<Text size="1" style={{ color: '#4b5563' }}>Manage and edit calendar events (Google Calendar)</Text>
+															</Flex>
+															<Flex align="center" gap="2">
+																<div style={{ width: '6px', height: '6px', backgroundColor: '#f0ad44', borderRadius: '50%' }} />
+																<Text size="1" style={{ color: '#4b5563' }}>Read and write spreadsheet data (Google Sheets)</Text>
+															</Flex>
+														</Flex>
+													</Box>
+													<Flex gap="3" justify="end" mt="2">
+														<Button
+															variant="solid"
+															color="red"
+															size="2"
+															onClick={disconnectGoogle}
+															style={{ cursor: 'pointer', fontWeight: 600 }}
+														>
+															<Trash2 size={14} /> Disconnect Account
+														</Button>
+													</Flex>
+												</Flex>
+											) : (
+												<Flex direction="column" gap="3">
+													<Text size="2" style={{ color: '#4b5563', lineHeight: '1.5' }}>
+														Connect your Google Workspace account to allow your AI agents to interact with Gmail, Google Calendar, and Google Sheets. You can enable specific tools on a per-agent basis once connected.
+													</Text>
+													<Flex gap="3" justify="end" mt="2">
+														<Button
+															variant="solid"
+															size="2"
+															onClick={initiateGoogleOAuth}
+															style={{ backgroundColor: '#f0ad44', color: '#161617', fontWeight: 600, cursor: 'pointer' }}
+														>
+															<ExternalLink size={14} /> Connect Google Account
+														</Button>
+													</Flex>
+												</Flex>
+											)}
+										</Flex>
+									</Card>
+
+									{/* Placeholder Card for Future Integrations to look premium */}
+									<Card size="3" style={{ borderRadius: '12px', border: '1px solid #e5e7eb', backgroundColor: '#fafafa', opacity: 0.7, cursor: 'not-allowed' }}>
+										<Flex direction="column" gap="4">
+											<Flex justify="between" align="center">
+												<Flex align="center" gap="3">
+													<div style={{ padding: '8px', borderRadius: '10px', backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center' }}>
+														<Phone size={24} style={{ color: '#9ca3af' }} />
+													</div>
+													<Box>
+														<Text size="3" weight="bold" style={{ color: '#374151' }}>Twilio Telephony</Text>
+														<Text size="1" style={{ color: '#9ca3af', display: 'block' }}>Make and receive phone calls via agent</Text>
+													</Box>
+												</Flex>
+												<Badge color="gray" variant="soft" radius="full" size="2">
+													Coming Soon
+												</Badge>
+											</Flex>
+											<Separator size="4" />
+											<Text size="2" style={{ color: '#6b7280' }}>
+												Connect your Twilio account to assign phone numbers directly to your voice agents, enabling outbound calling campaigns and inbound phone line response.
+											</Text>
+										</Flex>
+									</Card>
+								</Grid>
+							</Box>
 						) : null}
 						</Box>
 					)}
@@ -2805,7 +2916,7 @@ export default function App() {
 										)}
 
 										{creationStep === 'CONFIG' && (
-											<Tabs.Root defaultValue="instructions">
+											<Tabs.Root value={activeConfigTab} onValueChange={setActiveConfigTab}>
 												<Tabs.List size="2">
 													<Tabs.Trigger value="instructions">Core Behavior</Tabs.Trigger>
 													<Tabs.Trigger value="providers">Model & Voice</Tabs.Trigger>
@@ -3041,121 +3152,109 @@ export default function App() {
 															</Box>
 
 															{toolsEnabled && (
-																<Flex direction="column" gap="4">
-																	{/* Google OAuth Section */}
-																	<Box style={{ backgroundColor: '#ffffff', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-																		<Flex align="center" justify="between" gap="3">
-																			<Box>
-																				<Text size="2" weight="bold" style={{ color: '#111827' }}>Google Account Connection</Text>
-																				<Text size="1" ml="2" style={{ color: '#111827' }}>
-																					{googleConnected ? 'Connected with Google account' : 'Connect your Google account to enable tools'}
-																				</Text>
-																			</Box>
-																			{googleConnected ? (
-																				<Button
-																					variant="solid"
-																					size="1"
-																					onClick={disconnectGoogle}
-																					style={{ fontSize: '12px', backgroundColor: '#ef4444', color: 'white' }}
-																				>
-																					<CheckCircle size={12} /> Disconnect
-																				</Button>
-																			) : (
-																				<Button
-																					variant="outline"
-																					size="1"
-																					onClick={initiateGoogleOAuth}
-																					style={{ fontSize: '12px', borderColor: '#f0ad44', color: '#92400e' }}
-																				>
-																					<ExternalLink size={12} /> Connect Google Account
-																				</Button>
+																<>
+																	{googleConnected ? (
+																		<Flex direction="column" gap="4">
+																			{/* Tool Selection */}
+																			<Text size="2" weight="bold" style={{ color: '#111827' }}>Select Tools</Text>
+																			<Text size="1" style={{ color: '#111827' }}>Choose which tool categories to enable for this agent.</Text>
+
+																			<Flex direction="column" gap="3">
+																				<Box style={{ backgroundColor: '#ffffff', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+																					<Flex align="center" gap="3">
+																						<input
+																							type="checkbox"
+																							id="google-calendar"
+																							checked={selectedToolCategories.includes('google_calendar')}
+																							onChange={(e) => {
+																								if (e.target.checked) {
+																									setSelectedToolCategories([...selectedToolCategories, 'google_calendar']);
+																								} else {
+																									setSelectedToolCategories(selectedToolCategories.filter(c => c !== 'google_calendar'));
+																								}
+																							}}
+																							style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+																						/>
+																						<img src={GoogleCalendarIcon} alt="Google Calendar" style={{ width: '24px', height: '24px', flexShrink: 0 }} />
+																						<Box>
+																							<Text size="2" weight="bold" style={{ color: '#111827' }}>Google Calendar</Text>
+																							<Text size="1" ml="2" style={{ color: '#111827' }}>Create, find, update, and delete calendar events</Text>
+																						</Box>
+																					</Flex>
+																				</Box>
+
+																				<Box style={{ backgroundColor: '#ffffff', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+																					<Flex align="center" gap="3">
+																						<input
+																							type="checkbox"
+																							id="gmail"
+																							checked={selectedToolCategories.includes('gmail')}
+																							onChange={(e) => {
+																								if (e.target.checked) {
+																									setSelectedToolCategories([...selectedToolCategories, 'gmail']);
+																								} else {
+																									setSelectedToolCategories(selectedToolCategories.filter(c => c !== 'gmail'));
+																								}
+																							}}
+																							style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+																						/>
+																						<img src={GmailIcon} alt="Gmail" style={{ width: '24px', height: '24px', flexShrink: 0 }} />
+																						<Box>
+																							<Text size="2" weight="bold" style={{ color: '#111827' }}>Gmail</Text>
+																							<Text size="1" ml="2" style={{ color: '#111827' }}>Send emails, fetch emails, and list threads</Text>
+																						</Box>
+																					</Flex>
+																				</Box>
+
+																				<Box style={{ backgroundColor: '#ffffff', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+																					<Flex align="center" gap="3">
+																						<input
+																							type="checkbox"
+																							id="google-sheets"
+																							checked={selectedToolCategories.includes('google_sheets')}
+																							onChange={(e) => {
+																								if (e.target.checked) {
+																									setSelectedToolCategories([...selectedToolCategories, 'google_sheets']);
+																								} else {
+																									setSelectedToolCategories(selectedToolCategories.filter(c => c !== 'google_sheets'));
+																								}
+																							}}
+																							style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+																						/>
+																						<img src={GoogleSheetsIcon} alt="Google Sheets" style={{ width: '24px', height: '24px', flexShrink: 0 }} />
+																						<Box>
+																							<Text size="2" weight="bold" style={{ color: '#111827' }}>Google Sheets</Text>
+																							<Text size="1" ml="2" style={{ color: '#111827' }}>Append, update, create, and get spreadsheet values</Text>
+																						</Box>
+																					</Flex>
+																				</Box>
+																			</Flex>
+
+																			{selectedToolCategories.length > 0 && (
+																				<Box style={{ padding: '12px', borderRadius: '8px', backgroundColor: '#f0f9ff', border: '1px solid #bae6fd' }}>
+																					<Text size="1" style={{ color: '#0369a1' }}>
+																						{selectedToolCategories.length} tool{selectedToolCategories.length > 1 ? 's' : ''} selected: {selectedToolCategories.map(c => c.replace('_', ' ')).join(', ')}
+																					</Text>
+																				</Box>
 																			)}
 																		</Flex>
-																	</Box>
-
-																	{/* Tool Selection */}
-																	<Text size="2" weight="bold" style={{ color: '#111827' }}>Select Tools</Text>
-																	<Text size="1" style={{ color: '#111827' }}>Choose which tool categories to enable for this agent.</Text>
-
-																	<Flex direction="column" gap="3">
-																		<Box style={{ backgroundColor: '#ffffff', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-																			<Flex align="center" gap="3">
-																				<input
-																					type="checkbox"
-																					id="google-calendar"
-																					checked={selectedToolCategories.includes('google_calendar')}
-																					onChange={(e) => {
-																						if (e.target.checked) {
-																							setSelectedToolCategories([...selectedToolCategories, 'google_calendar']);
-																						} else {
-																							setSelectedToolCategories(selectedToolCategories.filter(c => c !== 'google_calendar'));
-																						}
-																					}}
-																					style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-																				/>
-																				<img src={GoogleCalendarIcon} alt="Google Calendar" style={{ width: '24px', height: '24px', flexShrink: 0 }} />
-																				<Box>
-																					<Text size="2" weight="bold" style={{ color: '#111827' }}>Google Calendar</Text>
-																					<Text size="1" ml="2" style={{ color: '#111827' }}>Create, find, update, and delete calendar events</Text>
-																				</Box>
-																			</Flex>
-																		</Box>
-
-																		<Box style={{ backgroundColor: '#ffffff', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-																			<Flex align="center" gap="3">
-																				<input
-																					type="checkbox"
-																					id="gmail"
-																					checked={selectedToolCategories.includes('gmail')}
-																					onChange={(e) => {
-																						if (e.target.checked) {
-																							setSelectedToolCategories([...selectedToolCategories, 'gmail']);
-																						} else {
-																							setSelectedToolCategories(selectedToolCategories.filter(c => c !== 'gmail'));
-																						}
-																					}}
-																					style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-																				/>
-																				<img src={GmailIcon} alt="Gmail" style={{ width: '24px', height: '24px', flexShrink: 0 }} />
-																				<Box>
-																					<Text size="2" weight="bold" style={{ color: '#111827' }}>Gmail</Text>
-																					<Text size="1" ml="2" style={{ color: '#111827' }}>Send emails, fetch emails, and list threads</Text>
-																				</Box>
-																			</Flex>
-																		</Box>
-
-																		<Box style={{ backgroundColor: '#ffffff', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-																			<Flex align="center" gap="3">
-																				<input
-																					type="checkbox"
-																					id="google-sheets"
-																					checked={selectedToolCategories.includes('google_sheets')}
-																					onChange={(e) => {
-																						if (e.target.checked) {
-																							setSelectedToolCategories([...selectedToolCategories, 'google_sheets']);
-																						} else {
-																							setSelectedToolCategories(selectedToolCategories.filter(c => c !== 'google_sheets'));
-																						}
-																					}}
-																					style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-																				/>
-																				<img src={GoogleSheetsIcon} alt="Google Sheets" style={{ width: '24px', height: '24px', flexShrink: 0 }} />
-																				<Box>
-																					<Text size="2" weight="bold" style={{ color: '#111827' }}>Google Sheets</Text>
-																					<Text size="1" ml="2" style={{ color: '#111827' }}>Append, update, create, and get spreadsheet values</Text>
-																				</Box>
-																			</Flex>
-																		</Box>
-																	</Flex>
-
-																	{selectedToolCategories.length > 0 && (
-																		<Box style={{ padding: '12px', borderRadius: '8px', backgroundColor: '#f0f9ff', border: '1px solid #bae6fd' }}>
-																			<Text size="1" style={{ color: '#0369a1' }}>
-																				{selectedToolCategories.length} tool{selectedToolCategories.length > 1 ? 's' : ''} selected: {selectedToolCategories.map(c => c.replace('_', ' ')).join(', ')}
+																	) : (
+																		<Box style={{ padding: '24px', border: '2px dashed #fca5a5', borderRadius: '12px', backgroundColor: '#fff5f5', textAlign: 'center' }}>
+																			<Text size="2" weight="bold" style={{ color: '#b91c1c' }}>Google Workspace Not Connected</Text>
+																			<Text size="1" mt="1" style={{ color: '#7f1d1d', display: 'block' }}>
+																				Please connect your Google Workspace account globally to enable these tools.
 																			</Text>
+																			<Button
+																				variant="solid"
+																				size="2"
+																				onClick={() => setActiveView('integrations')}
+																				style={{ marginTop: '16px', backgroundColor: '#f0ad44', color: '#161617', fontWeight: 600, cursor: 'pointer' }}
+																			>
+																				Go to Integrations
+																			</Button>
 																		</Box>
 																	)}
-																</Flex>
+																</>
 															)}
 
 															{!toolsEnabled && (

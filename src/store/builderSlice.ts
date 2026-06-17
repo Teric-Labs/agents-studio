@@ -2,7 +2,7 @@ import { createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
 
 
-export type ActiveView = 'dashboard' | 'builder' | 'voices' | 'knowledge' | 'workflows' | 'logs' | 'agent-detail';
+export type ActiveView = 'dashboard' | 'builder' | 'voices' | 'knowledge' | 'workflows' | 'logs' | 'agent-detail' | 'integrations';
 export type CreationStep = 'CATEGORY' | 'PERSONAL_USE_CASE' | 'BUSINESS_INDUSTRY' | 'BUSINESS_USE_CASE' | 'CONFIG';
 export type AgentCategory = 'blank' | 'personal' | 'business';
 export type AgentType = 'general' | 'workflow';
