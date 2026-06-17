@@ -1,13 +1,28 @@
 import { useEffect, useState, useRef } from 'react';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import {
-	setActiveView, setCreationStep, setAgentName, setInstructions,
-	setWelcomeMessage, setAllowInterruption, setAgentType, setSelectedWorkflowId,
-	setAgentCategory, setAgentIndustry, setAgentUseCase,
-	setChatOnly, setVisualizerType, setBrandColor,
-	setSelectedProviders, setProviderConfigs,
-	setToolsEnabled, setSelectedToolCategories, setWebSearchEnabled, setTavilyApiKey,
-	setCurrentAgentId, resetForm,
+	setActiveView as setActiveViewAction,
+	setCreationStep as setCreationStepAction,
+	setAgentName as setAgentNameAction,
+	setInstructions as setInstructionsAction,
+	setWelcomeMessage as setWelcomeMessageAction,
+	setAllowInterruption as setAllowInterruptionAction,
+	setAgentType as setAgentTypeAction,
+	setSelectedWorkflowId as setSelectedWorkflowIdAction,
+	setAgentCategory as setAgentCategoryAction,
+	setAgentIndustry as setAgentIndustryAction,
+	setAgentUseCase as setAgentUseCaseAction,
+	setChatOnly as setChatOnlyAction,
+	setVisualizerType as setVisualizerTypeAction,
+	setBrandColor as setBrandColorAction,
+	setSelectedProviders as setSelectedProvidersAction,
+	setProviderConfigs as setProviderConfigsAction,
+	setToolsEnabled as setToolsEnabledAction,
+	setSelectedToolCategories as setSelectedToolCategoriesAction,
+	setWebSearchEnabled as setWebSearchEnabledAction,
+	setTavilyApiKey as setTavilyApiKeyAction,
+	setCurrentAgentId as setCurrentAgentIdAction,
+	resetForm as resetFormAction,
 } from '../store/builderSlice';
 import axios from 'axios';
 import * as LiveKitSDK from 'livekit-client';
@@ -213,26 +228,28 @@ export default function App() {
 	const tavilyApiKey     = useAppSelector(s => s.builder.tavilyApiKey);
 
 	// Dispatch wrappers — same call signature as the old useState setters
-	const _setActiveView         = (v: typeof activeView) => dispatch(setActiveView(v));
-	const _setCreationStep       = (v: typeof creationStep) => dispatch(setCreationStep(v));
-	const _setAgentName          = (v: string) => dispatch(setAgentName(v));
-	const _setInstructions       = (v: string) => dispatch(setInstructions(v));
-	const _setWelcomeMessage     = (v: boolean) => dispatch(setWelcomeMessage(v));
-	const _setAllowInterruption  = (v: boolean) => dispatch(setAllowInterruption(v));
-	const _setAgentType          = (v: typeof agentType) => dispatch(setAgentType(v));
-	const _setSelectedWorkflowId = (v: string) => dispatch(setSelectedWorkflowId(v));
-	const _setAgentCategory      = (v: typeof agentCategory) => dispatch(setAgentCategory(v));
-	const _setAgentIndustry      = (v: string) => dispatch(setAgentIndustry(v));
-	const _setAgentUseCase       = (v: string) => dispatch(setAgentUseCase(v));
-	const _setChatOnly           = (v: boolean) => dispatch(setChatOnly(v));
-	const _setVisualizerType     = (v: typeof visualizerType) => dispatch(setVisualizerType(v));
-	const _setBrandColor         = (v: string) => dispatch(setBrandColor(v));
-	const _setSelectedProviders  = (v: typeof selectedProviders) => dispatch(setSelectedProviders(v));
-	const _setProviderConfigs    = (v: typeof providerConfigs) => dispatch(setProviderConfigs(v));
-	const _setToolsEnabled       = (v: boolean) => dispatch(setToolsEnabled(v));
-	const _setSelectedToolCategories = (v: string[]) => dispatch(setSelectedToolCategories(v));
-	const _setWebSearchEnabled   = (v: boolean) => dispatch(setWebSearchEnabled(v));
-	const _setTavilyApiKey       = (v: string) => dispatch(setTavilyApiKey(v));
+	const setActiveView         = (v: typeof activeView) => dispatch(setActiveViewAction(v));
+	const setCreationStep       = (v: typeof creationStep) => dispatch(setCreationStepAction(v));
+	const setAgentName          = (v: string) => dispatch(setAgentNameAction(v));
+	const setInstructions       = (v: string) => dispatch(setInstructionsAction(v));
+	const setWelcomeMessage     = (v: boolean) => dispatch(setWelcomeMessageAction(v));
+	const setAllowInterruption  = (v: boolean) => dispatch(setAllowInterruptionAction(v));
+	const setAgentType          = (v: typeof agentType) => dispatch(setAgentTypeAction(v));
+	const setSelectedWorkflowId = (v: string) => dispatch(setSelectedWorkflowIdAction(v));
+	const setAgentCategory      = (v: typeof agentCategory) => dispatch(setAgentCategoryAction(v));
+	const setAgentIndustry      = (v: string) => dispatch(setAgentIndustryAction(v));
+	const setAgentUseCase       = (v: string) => dispatch(setAgentUseCaseAction(v));
+	const setChatOnly           = (v: boolean) => dispatch(setChatOnlyAction(v));
+	const setVisualizerType     = (v: typeof visualizerType) => dispatch(setVisualizerTypeAction(v));
+	const setBrandColor         = (v: string) => dispatch(setBrandColorAction(v));
+	const setSelectedProviders  = (v: typeof selectedProviders) => dispatch(setSelectedProvidersAction(v));
+	const setProviderConfigs    = (v: typeof providerConfigs) => dispatch(setProviderConfigsAction(v));
+	const setToolsEnabled       = (v: boolean) => dispatch(setToolsEnabledAction(v));
+	const setSelectedToolCategories = (v: string[]) => dispatch(setSelectedToolCategoriesAction(v));
+	const setWebSearchEnabled   = (v: boolean) => dispatch(setWebSearchEnabledAction(v));
+	const setTavilyApiKey       = (v: string) => dispatch(setTavilyApiKeyAction(v));
+	const setCurrentAgentId     = (v: string | null) => dispatch(setCurrentAgentIdAction(v));
+	const resetForm             = () => dispatch(resetFormAction());
 
 	// Local React state (volatile UI — no need to survive redirect)
 	const [currentAgent, setCurrentAgent] = useState<any>(null);
@@ -919,7 +936,7 @@ export default function App() {
 				let initialStt = Object.keys(p.stt)[0] || '';
 				let initialTts = Object.keys(p.tts)[0] || '';
 				let initialLlm = Object.keys(p.llm)[0] || '';
-				_setSelectedProviders({
+				setSelectedProviders({
 					stt: initialStt,
 					tts: initialTts,
 					llm: initialLlm
@@ -989,16 +1006,16 @@ export default function App() {
 			setAllowInterruption(agent.config.allow_interruption ?? true);
 
 			if (agent.config.stt_config) {
-				_setSelectedProviders({ ...selectedProviders, stt: agent.config.stt_config.provider });
-				_setProviderConfigs({ ...providerConfigs, stt: agent.config.stt_config.additional_config || {} });
+				setSelectedProviders({ ...selectedProviders, stt: agent.config.stt_config.provider });
+				setProviderConfigs({ ...providerConfigs, stt: agent.config.stt_config.additional_config || {} });
 			}
 			if (agent.config.tts_config) {
-				_setSelectedProviders({ ...selectedProviders, tts: agent.config.tts_config.provider });
-				_setProviderConfigs({ ...providerConfigs, tts: agent.config.tts_config.additional_config || {} });
+				setSelectedProviders({ ...selectedProviders, tts: agent.config.tts_config.provider });
+				setProviderConfigs({ ...providerConfigs, tts: agent.config.tts_config.additional_config || {} });
 			}
 			if (agent.config.llm_config) {
-				_setSelectedProviders({ ...selectedProviders, llm: agent.config.llm_config.provider });
-				_setProviderConfigs({ ...providerConfigs, llm: agent.config.llm_config.additional_config || {} });
+				setSelectedProviders({ ...selectedProviders, llm: agent.config.llm_config.provider });
+				setProviderConfigs({ ...providerConfigs, llm: agent.config.llm_config.additional_config || {} });
 			}
 			setAgentType(agent.config.agent_type || 'general');
 			setSelectedWorkflowId(agent.config.workflow_id || '');
@@ -1037,7 +1054,7 @@ export default function App() {
 	};
 
 	const updateProviderConfig = (type: string, field: string, value: any) => {
-		_setProviderConfigs({
+		setProviderConfigs({
 			...providerConfigs,
 			[type]: { ...providerConfigs[type], [field]: value }
 		});
@@ -2813,7 +2830,7 @@ export default function App() {
 														<Grid columns={{ initial: '1', md: '3' }} gap="4">
 															<Flex direction="column" gap="3">
 																<Text size="2" weight="bold" style={{ color: '#111827', textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: '11px' }}>Transcription (STT)</Text>
-																<Select.Root value={selectedProviders.stt} onValueChange={(v) => _setSelectedProviders({ ...selectedProviders, stt: v })}>
+																<Select.Root value={selectedProviders.stt} onValueChange={(v) => setSelectedProviders({ ...selectedProviders, stt: v })}>
 																	<Select.Trigger placeholder="Select STT Provider" />
 																	<Select.Content>
 																		{providers.stt && Object.keys(providers.stt).map(id => <Select.Item key={id} value={id}>{id.toUpperCase()}</Select.Item>)}
@@ -2831,7 +2848,7 @@ export default function App() {
 
 															<Flex direction="column" gap="3">
 																<Text size="2" weight="bold" style={{ color: '#111827', textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: '11px' }}>Reasoning (LLM)</Text>
-																<Select.Root value={selectedProviders.llm} onValueChange={(v) => _setSelectedProviders({ ...selectedProviders, llm: v })}>
+																<Select.Root value={selectedProviders.llm} onValueChange={(v) => setSelectedProviders({ ...selectedProviders, llm: v })}>
 																	<Select.Trigger placeholder="Select LLM Provider" />
 																	<Select.Content>
 																		{providers.llm && Object.keys(providers.llm).map(id => <Select.Item key={id} value={id}>{id.toUpperCase()}</Select.Item>)}
@@ -2853,7 +2870,7 @@ export default function App() {
 
 															<Flex direction="column" gap="3">
 																<Text size="2" weight="bold" style={{ color: '#111827', textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: '11px' }}>Speech (TTS)</Text>
-																<Select.Root value={selectedProviders.tts} onValueChange={(v) => _setSelectedProviders({ ...selectedProviders, tts: v })}>
+																<Select.Root value={selectedProviders.tts} onValueChange={(v) => setSelectedProviders({ ...selectedProviders, tts: v })}>
 																	<Select.Trigger placeholder="Select TTS Provider" />
 																	<Select.Content>
 																		{providers.tts && Object.keys(providers.tts).map(id => <Select.Item key={id} value={id}>{id.toUpperCase()}</Select.Item>)}
