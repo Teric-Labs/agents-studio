@@ -479,15 +479,34 @@ export default function App() {
 				return;
 			}
 
-			// Redux-persist automatically saves all form state to sessionStorage
-			// on every dispatch, so nothing needs to be manually snapshotted here.
+			// Explicitly save the return context to localStorage.
+			// localStorage survives cross-origin navigation in the same tab.
+			// Redux-persist also saves state, but this is an explicit fallback.
+			localStorage.setItem('oauth_return_ctx', JSON.stringify({
+				activeView,
+				creationStep,
+				agentName,
+				instructions,
+				welcomeMessage,
+				allowInterruption,
+				agentType,
+				selectedWorkflowId,
+				agentCategory,
+				agentIndustry,
+				agentUseCase,
+				chatOnly,
+				visualizerType,
+				brandColor,
+				toolsEnabled,
+				selectedToolCategories,
+				webSearchEnabled,
+				tavilyApiKey,
+			}));
+
 			const response = await axios.post(`${API_BASE}/google/authorize`, { user_id: firebaseUid });
 			const { authorization_url } = response.data;
 
 			localStorage.setItem('user_id', firebaseUid);
-
-			// Same-tab redirect — backend sends us back with ?google_connected=1
-			// Redux state will already be rehydrated by PersistGate before any render.
 			window.location.href = authorization_url;
 		} catch (error) {
 			console.error('Failed to initiate Google OAuth:', error);
@@ -512,12 +531,46 @@ export default function App() {
 		}
 	};
 
-	// ── OAuth return: clean URL and refresh badge (Redux already rehydrated state)
+	// ── OAuth return: restore nav state from localStorage, clean URL, refresh badge
 	useEffect(() => {
 		const params = new URLSearchParams(window.location.search);
 		if (params.get('google_connected') !== '1') return;
-		// Clean ?google_connected=1 from URL
+
+		// Clean the URL immediately
 		window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+
+		// Restore the explicit localStorage backup (most reliable across redirects)
+		const raw = localStorage.getItem('oauth_return_ctx');
+		if (raw) {
+			try {
+				const ctx = JSON.parse(raw);
+				// Navigation state — most critical
+				if (ctx.activeView)   dispatch(setActiveView(ctx.activeView));
+				if (ctx.creationStep) dispatch(setCreationStep(ctx.creationStep));
+				// Form fields
+				if (ctx.agentName !== undefined)              dispatch(setAgentName(ctx.agentName));
+				if (ctx.instructions !== undefined)           dispatch(setInstructions(ctx.instructions));
+				if (ctx.welcomeMessage !== undefined)         dispatch(setWelcomeMessage(ctx.welcomeMessage));
+				if (ctx.allowInterruption !== undefined)      dispatch(setAllowInterruption(ctx.allowInterruption));
+				if (ctx.agentType !== undefined)              dispatch(setAgentType(ctx.agentType));
+				if (ctx.selectedWorkflowId !== undefined)     dispatch(setSelectedWorkflowId(ctx.selectedWorkflowId));
+				if (ctx.agentCategory !== undefined)          dispatch(setAgentCategory(ctx.agentCategory));
+				if (ctx.agentIndustry !== undefined)          dispatch(setAgentIndustry(ctx.agentIndustry));
+				if (ctx.agentUseCase !== undefined)           dispatch(setAgentUseCase(ctx.agentUseCase));
+				if (ctx.chatOnly !== undefined)               dispatch(setChatOnly(ctx.chatOnly));
+				if (ctx.visualizerType !== undefined)         dispatch(setVisualizerType(ctx.visualizerType));
+				if (ctx.brandColor !== undefined)             dispatch(setBrandColor(ctx.brandColor));
+				if (ctx.toolsEnabled !== undefined)           dispatch(setToolsEnabled(ctx.toolsEnabled));
+				if (ctx.selectedToolCategories !== undefined) dispatch(setSelectedToolCategories(ctx.selectedToolCategories));
+				if (ctx.webSearchEnabled !== undefined)       dispatch(setWebSearchEnabled(ctx.webSearchEnabled));
+				if (ctx.tavilyApiKey !== undefined)           dispatch(setTavilyApiKey(ctx.tavilyApiKey));
+			} catch (e) {
+				console.warn('Could not restore OAuth return context:', e);
+			} finally {
+				localStorage.removeItem('oauth_return_ctx');
+			}
+		}
+
 		if (user?.uid) localStorage.setItem('user_id', user.uid);
 		fetchGoogleConnectionStatus();
 	}, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -860,15 +913,19 @@ export default function App() {
 			setProviders(response.data);
 
 			const p = response.data;
-			let initialStt = Object.keys(p.stt)[0] || '';
-			let initialTts = Object.keys(p.tts)[0] || '';
-			let initialLlm = Object.keys(p.llm)[0] || '';
+			// Only set provider defaults if the user doesn't already have selections
+			// (e.g., they were rehydrated from redux-persist after an OAuth redirect).
+			if (!selectedProviders.stt && !selectedProviders.tts && !selectedProviders.llm) {
+				let initialStt = Object.keys(p.stt)[0] || '';
+				let initialTts = Object.keys(p.tts)[0] || '';
+				let initialLlm = Object.keys(p.llm)[0] || '';
+				_setSelectedProviders({
+					stt: initialStt,
+					tts: initialTts,
+					llm: initialLlm
+				});
+			}
 
-			setSelectedProviders({
-				stt: initialStt,
-				tts: initialTts,
-				llm: initialLlm
-			});
 		} catch (error) {
 			console.error('Failed to load providers:', error);
 		}
