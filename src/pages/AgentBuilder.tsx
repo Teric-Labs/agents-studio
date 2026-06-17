@@ -193,7 +193,21 @@ export default function App() {
 	const [currentAgent, setCurrentAgent] = useState<any>(null);
 
 	// UI State
-	const [activeView, setActiveView] = useState<'dashboard' | 'builder' | 'voices' | 'knowledge' | 'workflows' | 'logs' | 'agent-detail'>('dashboard');
+	const [activeView, setActiveView] = useState<'dashboard' | 'builder' | 'voices' | 'knowledge' | 'workflows' | 'logs' | 'agent-detail'>(() => {
+		// If returning from Google OAuth, restore the view the user was on immediately
+		// so the very first render shows the right screen (not the dashboard).
+		const params = new URLSearchParams(window.location.search);
+		if (params.get('google_connected') === '1') {
+			try {
+				const raw = sessionStorage.getItem('oauth_form_snapshot');
+				if (raw) {
+					const snap = JSON.parse(raw);
+					if (snap.activeView) return snap.activeView;
+				}
+			} catch (_) {}
+		}
+		return 'dashboard';
+	});
 	const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 	const [editingWorkflowId, setEditingWorkflowId] = useState<string | null>(null);
 	const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -404,7 +418,20 @@ export default function App() {
 	}, [isTranscriptModalOpen, selectedLogForTranscript, recordings]);
 
 	// New Agent Creation Flow State
-	const [creationStep, setCreationStep] = useState<'CATEGORY' | 'PERSONAL_USE_CASE' | 'BUSINESS_INDUSTRY' | 'BUSINESS_USE_CASE' | 'CONFIG'>('CATEGORY');
+	const [creationStep, setCreationStep] = useState<'CATEGORY' | 'PERSONAL_USE_CASE' | 'BUSINESS_INDUSTRY' | 'BUSINESS_USE_CASE' | 'CONFIG'>(() => {
+		// Restore creation step on OAuth return so the user lands directly on the CONFIG form
+		const params = new URLSearchParams(window.location.search);
+		if (params.get('google_connected') === '1') {
+			try {
+				const raw = sessionStorage.getItem('oauth_form_snapshot');
+				if (raw) {
+					const snap = JSON.parse(raw);
+					if (snap.creationStep) return snap.creationStep;
+				}
+			} catch (_) {}
+		}
+		return 'CATEGORY';
+	});
 	const [agentCategory, setAgentCategory] = useState<'blank' | 'personal' | 'business'>('blank');
 	const [agentIndustry, setAgentIndustry] = useState<string>('');
 	const [agentUseCase, setAgentUseCase] = useState<string>('');
@@ -508,52 +535,56 @@ export default function App() {
 		}
 	};
 
-	// Fetch connections on mount + detect return from Google OAuth
+	// ── OAuth return: restore full form state (runs ONCE on mount, before other effects)
 	useEffect(() => {
 		const params = new URLSearchParams(window.location.search);
-		if (params.get('google_connected') === '1') {
-			// ══ RESTORE FORM STATE saved before OAuth redirect ══
-			const raw = sessionStorage.getItem('oauth_form_snapshot');
-			if (raw) {
-				try {
-					const snap = JSON.parse(raw);
-					if (snap.agentName !== undefined)           setAgentName(snap.agentName);
-					if (snap.instructions !== undefined)       setInstructions(snap.instructions);
-					if (snap.welcomeMessage !== undefined)     setWelcomeMessage(snap.welcomeMessage);
-					if (snap.allowInterruption !== undefined)  setAllowInterruption(snap.allowInterruption);
-					if (snap.providerConfigs !== undefined)    setProviderConfigs(snap.providerConfigs);
-					if (snap.selectedProviders !== undefined)  setSelectedProviders(snap.selectedProviders);
-					if (snap.agentType !== undefined)          setAgentType(snap.agentType);
-					if (snap.selectedWorkflowId !== undefined) setSelectedWorkflowId(snap.selectedWorkflowId);
-					if (snap.creationStep !== undefined)       setCreationStep(snap.creationStep);
-					if (snap.agentCategory !== undefined)      setAgentCategory(snap.agentCategory);
-					if (snap.agentIndustry !== undefined)      setAgentIndustry(snap.agentIndustry);
-					if (snap.agentUseCase !== undefined)       setAgentUseCase(snap.agentUseCase);
-					if (snap.chatOnly !== undefined)           setChatOnly(snap.chatOnly);
-					if (snap.visualizerType !== undefined)     setVisualizerType(snap.visualizerType);
-					if (snap.brandColor !== undefined)         setBrandColor(snap.brandColor);
-					if (snap.toolsEnabled !== undefined)       setToolsEnabled(snap.toolsEnabled);
-					if (snap.selectedToolCategories !== undefined) setSelectedToolCategories(snap.selectedToolCategories);
-					if (snap.webSearchEnabled !== undefined)   setWebSearchEnabled(snap.webSearchEnabled);
-					if (snap.tavilyApiKey !== undefined)       setTavilyApiKey(snap.tavilyApiKey);
-					if (snap.activeView !== undefined)         setActiveView(snap.activeView);
-				} catch (e) {
-					console.warn('Could not restore OAuth form snapshot:', e);
-				} finally {
-					sessionStorage.removeItem('oauth_form_snapshot');
-				}
-			}
+		if (params.get('google_connected') !== '1') return;
 
-			// Clean ?google_connected=1 from the URL
-			const cleanUrl = window.location.pathname + window.location.hash;
-			window.history.replaceState({}, '', cleanUrl);
+		// Clean the URL immediately so a refresh doesn't re-trigger this
+		const cleanUrl = window.location.pathname + window.location.hash;
+		window.history.replaceState({}, '', cleanUrl);
 
-			// Ensure Firebase UID is saved and refresh the connection badge
-			if (user?.uid) localStorage.setItem('user_id', user.uid);
-			fetchGoogleConnectionStatus();
-		} else if (toolsEnabled) {
-			fetchGoogleConnectionStatus();
+		const raw = sessionStorage.getItem('oauth_form_snapshot');
+		if (!raw) return;
+
+		try {
+			const snap = JSON.parse(raw);
+			// activeView and creationStep are already set via lazy initializer above.
+			// Restore all other form fields here.
+			if (snap.agentName !== undefined)              setAgentName(snap.agentName);
+			if (snap.instructions !== undefined)           setInstructions(snap.instructions);
+			if (snap.welcomeMessage !== undefined)         setWelcomeMessage(snap.welcomeMessage);
+			if (snap.allowInterruption !== undefined)      setAllowInterruption(snap.allowInterruption);
+			if (snap.providerConfigs !== undefined)        setProviderConfigs(snap.providerConfigs);
+			if (snap.selectedProviders !== undefined)      setSelectedProviders(snap.selectedProviders);
+			if (snap.agentType !== undefined)              setAgentType(snap.agentType);
+			if (snap.selectedWorkflowId !== undefined)     setSelectedWorkflowId(snap.selectedWorkflowId);
+			if (snap.agentCategory !== undefined)          setAgentCategory(snap.agentCategory);
+			if (snap.agentIndustry !== undefined)          setAgentIndustry(snap.agentIndustry);
+			if (snap.agentUseCase !== undefined)           setAgentUseCase(snap.agentUseCase);
+			if (snap.chatOnly !== undefined)               setChatOnly(snap.chatOnly);
+			if (snap.visualizerType !== undefined)         setVisualizerType(snap.visualizerType);
+			if (snap.brandColor !== undefined)             setBrandColor(snap.brandColor);
+			if (snap.toolsEnabled !== undefined)           setToolsEnabled(snap.toolsEnabled);
+			if (snap.selectedToolCategories !== undefined) setSelectedToolCategories(snap.selectedToolCategories);
+			if (snap.webSearchEnabled !== undefined)       setWebSearchEnabled(snap.webSearchEnabled);
+			if (snap.tavilyApiKey !== undefined)           setTavilyApiKey(snap.tavilyApiKey);
+		} catch (e) {
+			console.warn('Could not restore OAuth form snapshot:', e);
+		} finally {
+			sessionStorage.removeItem('oauth_form_snapshot');
 		}
+
+		// Ensure Firebase UID is saved and refresh the Google connection badge
+		if (user?.uid) localStorage.setItem('user_id', user.uid);
+		fetchGoogleConnectionStatus();
+	}, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+	// ── Normal Google connection status fetch when tools tab is opened
+	useEffect(() => {
+		const params = new URLSearchParams(window.location.search);
+		if (params.get('google_connected') === '1') return; // handled by the mount effect above
+		if (toolsEnabled) fetchGoogleConnectionStatus();
 	}, [toolsEnabled]);
 
 	useEffect(() => {
