@@ -1,4 +1,14 @@
 import { useEffect, useState, useRef } from 'react';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import {
+	setActiveView, setCreationStep, setAgentName, setInstructions,
+	setWelcomeMessage, setAllowInterruption, setAgentType, setSelectedWorkflowId,
+	setAgentCategory, setAgentIndustry, setAgentUseCase,
+	setChatOnly, setVisualizerType, setBrandColor,
+	setSelectedProviders, setProviderConfigs,
+	setToolsEnabled, setSelectedToolCategories, setWebSearchEnabled, setTavilyApiKey,
+	setCurrentAgentId, resetForm,
+} from '../store/builderSlice';
 import axios from 'axios';
 import * as LiveKitSDK from 'livekit-client';
 import { Activity, BarChart, Bell, Book, Bot, Brain, Briefcase, Building2, Calendar, Car, Check, CheckCircle, CheckSquare, ChevronLeft, ChevronRight, Code, Copy, Eye, EyeOff, ExternalLink, Globe, GraduationCap, Hammer, Headphones, HeartHandshake, History, Key, LogOut, Menu, MessageSquare, MessageSquareOff, Mic, MoreVertical, Music, Palette, Phone, PhoneOff, Plane, Play, Plus, RefreshCw, Save, Scale, Search, Settings, ShoppingCart, Stethoscope, Trash2, Truck, Undo, User, UserCheck, UtensilsCrossed, Workflow, X } from 'lucide-react';
@@ -172,42 +182,60 @@ export default function App() {
 		stt: {}, tts: {}, llm: {}
 	});
 
-	const [selectedProviders, setSelectedProviders] = useState({ stt: '', tts: '', llm: '' });
-
 	// List of all agents and workflows from the API
 	const [agentsList, setAgentsList] = useState<any[]>([]);
 	const [workflowsList, setWorkflowsList] = useState<any[]>([]);
 
 	// Workflows payload state from ReactFlow
 	const [workflowsPayload, setWorkflowsPayload] = useState<any>(null);
-	const [selectedWorkflowId, setSelectedWorkflowId] = useState<string>('');
-	const [agentType, setAgentType] = useState<'general' | 'workflow'>('general');
 
-	// Agent form state
-	const [agentName, setAgentName] = useState('');
-	const [instructions, setInstructions] = useState('');
-	const [welcomeMessage, setWelcomeMessage] = useState(true);
-	const [allowInterruption, setAllowInterruption] = useState(true);
-	const [providerConfigs, setProviderConfigs] = useState<Record<string, Record<string, any>>>({ stt: {}, tts: {}, llm: {} });
+	// ── Redux-persisted form & navigation state ─────────────────────────
+	const dispatch = useAppDispatch();
+	const activeView       = useAppSelector(s => s.builder.activeView);
+	const creationStep     = useAppSelector(s => s.builder.creationStep);
+	const agentName        = useAppSelector(s => s.builder.agentName);
+	const instructions     = useAppSelector(s => s.builder.instructions);
+	const welcomeMessage   = useAppSelector(s => s.builder.welcomeMessage);
+	const allowInterruption = useAppSelector(s => s.builder.allowInterruption);
+	const agentType        = useAppSelector(s => s.builder.agentType);
+	const selectedWorkflowId = useAppSelector(s => s.builder.selectedWorkflowId);
+	const agentCategory    = useAppSelector(s => s.builder.agentCategory);
+	const agentIndustry    = useAppSelector(s => s.builder.agentIndustry);
+	const agentUseCase     = useAppSelector(s => s.builder.agentUseCase);
+	const chatOnly         = useAppSelector(s => s.builder.chatOnly);
+	const visualizerType   = useAppSelector(s => s.builder.visualizerType);
+	const brandColor       = useAppSelector(s => s.builder.brandColor);
+	const selectedProviders = useAppSelector(s => s.builder.selectedProviders);
+	const providerConfigs  = useAppSelector(s => s.builder.providerConfigs);
+	const toolsEnabled     = useAppSelector(s => s.builder.toolsEnabled);
+	const selectedToolCategories = useAppSelector(s => s.builder.selectedToolCategories);
+	const webSearchEnabled = useAppSelector(s => s.builder.webSearchEnabled);
+	const tavilyApiKey     = useAppSelector(s => s.builder.tavilyApiKey);
 
+	// Dispatch wrappers — same call signature as the old useState setters
+	const _setActiveView         = (v: typeof activeView) => dispatch(setActiveView(v));
+	const _setCreationStep       = (v: typeof creationStep) => dispatch(setCreationStep(v));
+	const _setAgentName          = (v: string) => dispatch(setAgentName(v));
+	const _setInstructions       = (v: string) => dispatch(setInstructions(v));
+	const _setWelcomeMessage     = (v: boolean) => dispatch(setWelcomeMessage(v));
+	const _setAllowInterruption  = (v: boolean) => dispatch(setAllowInterruption(v));
+	const _setAgentType          = (v: typeof agentType) => dispatch(setAgentType(v));
+	const _setSelectedWorkflowId = (v: string) => dispatch(setSelectedWorkflowId(v));
+	const _setAgentCategory      = (v: typeof agentCategory) => dispatch(setAgentCategory(v));
+	const _setAgentIndustry      = (v: string) => dispatch(setAgentIndustry(v));
+	const _setAgentUseCase       = (v: string) => dispatch(setAgentUseCase(v));
+	const _setChatOnly           = (v: boolean) => dispatch(setChatOnly(v));
+	const _setVisualizerType     = (v: typeof visualizerType) => dispatch(setVisualizerType(v));
+	const _setBrandColor         = (v: string) => dispatch(setBrandColor(v));
+	const _setSelectedProviders  = (v: typeof selectedProviders) => dispatch(setSelectedProviders(v));
+	const _setProviderConfigs    = (v: typeof providerConfigs) => dispatch(setProviderConfigs(v));
+	const _setToolsEnabled       = (v: boolean) => dispatch(setToolsEnabled(v));
+	const _setSelectedToolCategories = (v: string[]) => dispatch(setSelectedToolCategories(v));
+	const _setWebSearchEnabled   = (v: boolean) => dispatch(setWebSearchEnabled(v));
+	const _setTavilyApiKey       = (v: string) => dispatch(setTavilyApiKey(v));
+
+	// Local React state (volatile UI — no need to survive redirect)
 	const [currentAgent, setCurrentAgent] = useState<any>(null);
-
-	// UI State
-	const [activeView, setActiveView] = useState<'dashboard' | 'builder' | 'voices' | 'knowledge' | 'workflows' | 'logs' | 'agent-detail'>(() => {
-		// If returning from Google OAuth, restore the view the user was on immediately
-		// so the very first render shows the right screen (not the dashboard).
-		const params = new URLSearchParams(window.location.search);
-		if (params.get('google_connected') === '1') {
-			try {
-				const raw = sessionStorage.getItem('oauth_form_snapshot');
-				if (raw) {
-					const snap = JSON.parse(raw);
-					if (snap.activeView) return snap.activeView;
-				}
-			} catch (_) {}
-		}
-		return 'dashboard';
-	});
 	const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 	const [editingWorkflowId, setEditingWorkflowId] = useState<string | null>(null);
 	const [showMobileMenu, setShowMobileMenu] = useState(false);
@@ -417,36 +445,11 @@ export default function App() {
 		}
 	}, [isTranscriptModalOpen, selectedLogForTranscript, recordings]);
 
-	// New Agent Creation Flow State
-	const [creationStep, setCreationStep] = useState<'CATEGORY' | 'PERSONAL_USE_CASE' | 'BUSINESS_INDUSTRY' | 'BUSINESS_USE_CASE' | 'CONFIG'>(() => {
-		// Restore creation step on OAuth return so the user lands directly on the CONFIG form
-		const params = new URLSearchParams(window.location.search);
-		if (params.get('google_connected') === '1') {
-			try {
-				const raw = sessionStorage.getItem('oauth_form_snapshot');
-				if (raw) {
-					const snap = JSON.parse(raw);
-					if (snap.creationStep) return snap.creationStep;
-				}
-			} catch (_) {}
-		}
-		return 'CATEGORY';
-	});
-	const [agentCategory, setAgentCategory] = useState<'blank' | 'personal' | 'business'>('blank');
-	const [agentIndustry, setAgentIndustry] = useState<string>('');
-	const [agentUseCase, setAgentUseCase] = useState<string>('');
-	const [chatOnly, setChatOnly] = useState<boolean>(false);
-	const [visualizerType, setVisualizerType] = useState<'bar' | 'grid' | 'radial' | 'wave' | 'aura'>('bar');
-	const [brandColor, setBrandColor] = useState<string>('#f0ad44');
-
-	// Tools/Integrations state
-	const [toolsEnabled, setToolsEnabled] = useState<boolean>(false);
-	const [selectedToolCategories, setSelectedToolCategories] = useState<string[]>([]);
+	// Tools/Integrations local state (connected badge doesn't need to persist)
 	const [googleConnected, setGoogleConnected] = useState<boolean>(false);
 	const [_googleScopes, setGoogleScopes] = useState<string[]>([]);
-	const [webSearchEnabled, setWebSearchEnabled] = useState<boolean>(false);
-	const [tavilyApiKey, setTavilyApiKey] = useState<string>('');
 	const [showApiKey, setShowApiKey] = useState<boolean>(false);
+
 
 	// Fetch Google OAuth connection status
 	const fetchGoogleConnectionStatus = async () => {
@@ -476,41 +479,15 @@ export default function App() {
 				return;
 			}
 
-			// ══ SAVE FORM STATE before navigating away ══
-			// A full-page redirect wipes all React state. We persist everything
-			// the user has typed/selected so it can be restored on return.
-			const snapshot = {
-				agentName,
-				instructions,
-				welcomeMessage,
-				allowInterruption,
-				providerConfigs,
-				selectedProviders,
-				agentType,
-				selectedWorkflowId,
-				creationStep,
-				agentCategory,
-				agentIndustry,
-				agentUseCase,
-				chatOnly,
-				visualizerType,
-				brandColor,
-				toolsEnabled,
-				selectedToolCategories,
-				webSearchEnabled,
-				tavilyApiKey,
-				activeView,
-				// If editing an existing agent, keep track of it
-				currentAgentId: currentAgent?.id || null,
-			};
-			sessionStorage.setItem('oauth_form_snapshot', JSON.stringify(snapshot));
-
+			// Redux-persist automatically saves all form state to sessionStorage
+			// on every dispatch, so nothing needs to be manually snapshotted here.
 			const response = await axios.post(`${API_BASE}/google/authorize`, { user_id: firebaseUid });
 			const { authorization_url } = response.data;
 
 			localStorage.setItem('user_id', firebaseUid);
 
-			// Redirect in the same tab — backend will send us back with ?google_connected=1
+			// Same-tab redirect — backend sends us back with ?google_connected=1
+			// Redux state will already be rehydrated by PersistGate before any render.
 			window.location.href = authorization_url;
 		} catch (error) {
 			console.error('Failed to initiate Google OAuth:', error);
@@ -535,47 +512,12 @@ export default function App() {
 		}
 	};
 
-	// ── OAuth return: restore full form state (runs ONCE on mount, before other effects)
+	// ── OAuth return: clean URL and refresh badge (Redux already rehydrated state)
 	useEffect(() => {
 		const params = new URLSearchParams(window.location.search);
 		if (params.get('google_connected') !== '1') return;
-
-		// Clean the URL immediately so a refresh doesn't re-trigger this
-		const cleanUrl = window.location.pathname + window.location.hash;
-		window.history.replaceState({}, '', cleanUrl);
-
-		const raw = sessionStorage.getItem('oauth_form_snapshot');
-		if (!raw) return;
-
-		try {
-			const snap = JSON.parse(raw);
-			// activeView and creationStep are already set via lazy initializer above.
-			// Restore all other form fields here.
-			if (snap.agentName !== undefined)              setAgentName(snap.agentName);
-			if (snap.instructions !== undefined)           setInstructions(snap.instructions);
-			if (snap.welcomeMessage !== undefined)         setWelcomeMessage(snap.welcomeMessage);
-			if (snap.allowInterruption !== undefined)      setAllowInterruption(snap.allowInterruption);
-			if (snap.providerConfigs !== undefined)        setProviderConfigs(snap.providerConfigs);
-			if (snap.selectedProviders !== undefined)      setSelectedProviders(snap.selectedProviders);
-			if (snap.agentType !== undefined)              setAgentType(snap.agentType);
-			if (snap.selectedWorkflowId !== undefined)     setSelectedWorkflowId(snap.selectedWorkflowId);
-			if (snap.agentCategory !== undefined)          setAgentCategory(snap.agentCategory);
-			if (snap.agentIndustry !== undefined)          setAgentIndustry(snap.agentIndustry);
-			if (snap.agentUseCase !== undefined)           setAgentUseCase(snap.agentUseCase);
-			if (snap.chatOnly !== undefined)               setChatOnly(snap.chatOnly);
-			if (snap.visualizerType !== undefined)         setVisualizerType(snap.visualizerType);
-			if (snap.brandColor !== undefined)             setBrandColor(snap.brandColor);
-			if (snap.toolsEnabled !== undefined)           setToolsEnabled(snap.toolsEnabled);
-			if (snap.selectedToolCategories !== undefined) setSelectedToolCategories(snap.selectedToolCategories);
-			if (snap.webSearchEnabled !== undefined)       setWebSearchEnabled(snap.webSearchEnabled);
-			if (snap.tavilyApiKey !== undefined)           setTavilyApiKey(snap.tavilyApiKey);
-		} catch (e) {
-			console.warn('Could not restore OAuth form snapshot:', e);
-		} finally {
-			sessionStorage.removeItem('oauth_form_snapshot');
-		}
-
-		// Ensure Firebase UID is saved and refresh the Google connection badge
+		// Clean ?google_connected=1 from URL
+		window.history.replaceState({}, '', window.location.pathname + window.location.hash);
 		if (user?.uid) localStorage.setItem('user_id', user.uid);
 		fetchGoogleConnectionStatus();
 	}, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -583,7 +525,7 @@ export default function App() {
 	// ── Normal Google connection status fetch when tools tab is opened
 	useEffect(() => {
 		const params = new URLSearchParams(window.location.search);
-		if (params.get('google_connected') === '1') return; // handled by the mount effect above
+		if (params.get('google_connected') === '1') return;
 		if (toolsEnabled) fetchGoogleConnectionStatus();
 	}, [toolsEnabled]);
 
@@ -990,16 +932,16 @@ export default function App() {
 			setAllowInterruption(agent.config.allow_interruption ?? true);
 
 			if (agent.config.stt_config) {
-				setSelectedProviders(p => ({ ...p, stt: agent.config.stt_config.provider }));
-				setProviderConfigs(p => ({ ...p, stt: agent.config.stt_config.additional_config || {} }));
+				_setSelectedProviders({ ...selectedProviders, stt: agent.config.stt_config.provider });
+				_setProviderConfigs({ ...providerConfigs, stt: agent.config.stt_config.additional_config || {} });
 			}
 			if (agent.config.tts_config) {
-				setSelectedProviders(p => ({ ...p, tts: agent.config.tts_config.provider }));
-				setProviderConfigs(p => ({ ...p, tts: agent.config.tts_config.additional_config || {} }));
+				_setSelectedProviders({ ...selectedProviders, tts: agent.config.tts_config.provider });
+				_setProviderConfigs({ ...providerConfigs, tts: agent.config.tts_config.additional_config || {} });
 			}
 			if (agent.config.llm_config) {
-				setSelectedProviders(p => ({ ...p, llm: agent.config.llm_config.provider }));
-				setProviderConfigs(p => ({ ...p, llm: agent.config.llm_config.additional_config || {} }));
+				_setSelectedProviders({ ...selectedProviders, llm: agent.config.llm_config.provider });
+				_setProviderConfigs({ ...providerConfigs, llm: agent.config.llm_config.additional_config || {} });
 			}
 			setAgentType(agent.config.agent_type || 'general');
 			setSelectedWorkflowId(agent.config.workflow_id || '');
@@ -1038,10 +980,10 @@ export default function App() {
 	};
 
 	const updateProviderConfig = (type: string, field: string, value: any) => {
-		setProviderConfigs(prev => ({
-			...prev,
-			[type]: { ...prev[type], [field]: value }
-		}));
+		_setProviderConfigs({
+			...providerConfigs,
+			[type]: { ...providerConfigs[type], [field]: value }
+		});
 	};
 
 	const createAgent = async (silent: boolean = false) => {
@@ -2814,7 +2756,7 @@ export default function App() {
 														<Grid columns={{ initial: '1', md: '3' }} gap="4">
 															<Flex direction="column" gap="3">
 																<Text size="2" weight="bold" style={{ color: '#111827', textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: '11px' }}>Transcription (STT)</Text>
-																<Select.Root value={selectedProviders.stt} onValueChange={(v) => setSelectedProviders(prev => ({ ...prev, stt: v }))}>
+																<Select.Root value={selectedProviders.stt} onValueChange={(v) => _setSelectedProviders({ ...selectedProviders, stt: v })}>
 																	<Select.Trigger placeholder="Select STT Provider" />
 																	<Select.Content>
 																		{providers.stt && Object.keys(providers.stt).map(id => <Select.Item key={id} value={id}>{id.toUpperCase()}</Select.Item>)}
@@ -2832,7 +2774,7 @@ export default function App() {
 
 															<Flex direction="column" gap="3">
 																<Text size="2" weight="bold" style={{ color: '#111827', textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: '11px' }}>Reasoning (LLM)</Text>
-																<Select.Root value={selectedProviders.llm} onValueChange={(v) => setSelectedProviders(prev => ({ ...prev, llm: v }))}>
+																<Select.Root value={selectedProviders.llm} onValueChange={(v) => _setSelectedProviders({ ...selectedProviders, llm: v })}>
 																	<Select.Trigger placeholder="Select LLM Provider" />
 																	<Select.Content>
 																		{providers.llm && Object.keys(providers.llm).map(id => <Select.Item key={id} value={id}>{id.toUpperCase()}</Select.Item>)}
@@ -2854,7 +2796,7 @@ export default function App() {
 
 															<Flex direction="column" gap="3">
 																<Text size="2" weight="bold" style={{ color: '#111827', textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: '11px' }}>Speech (TTS)</Text>
-																<Select.Root value={selectedProviders.tts} onValueChange={(v) => setSelectedProviders(prev => ({ ...prev, tts: v }))}>
+																<Select.Root value={selectedProviders.tts} onValueChange={(v) => _setSelectedProviders({ ...selectedProviders, tts: v })}>
 																	<Select.Trigger placeholder="Select TTS Provider" />
 																	<Select.Content>
 																		{providers.tts && Object.keys(providers.tts).map(id => <Select.Item key={id} value={id}>{id.toUpperCase()}</Select.Item>)}

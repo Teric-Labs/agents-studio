@@ -8,6 +8,10 @@ import LandingPage from './pages/LandingPage'
 import { Theme } from "@radix-ui/themes";
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { Provider } from 'react-redux';
+import { PersistGate } from 'redux-persist/integration/react';
+import { store, persistor } from './store';
+
 function App() {
   const { user, loading } = useAuth();
 
@@ -26,12 +30,16 @@ function App() {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <TooltipProvider>
-      <AuthProvider>
-        <Theme appearance="light" accentColor="amber" grayColor="slate" panelBackground="translucent" radius="small">
-          <App />
-        </Theme>
-      </AuthProvider>
-    </TooltipProvider>
+    <Provider store={store}>
+      <PersistGate loading={null} persistor={persistor}>
+        <TooltipProvider>
+          <AuthProvider>
+            <Theme appearance="light" accentColor="amber" grayColor="slate" panelBackground="translucent" radius="small">
+              <App />
+            </Theme>
+          </AuthProvider>
+        </TooltipProvider>
+      </PersistGate>
+    </Provider>
   </StrictMode>,
 )
