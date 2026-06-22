@@ -42,50 +42,82 @@ const TaskNode = ({ id, data, selected }: any) => {
     else if (data.type === 'handoff') Icon = HandMetal;
     else if (data.type === 'question') Icon = User;
 
-    const borderColor = selected ? 'var(--accent-8)' : 'var(--gray-5)';
-
-    // Icon color handling
-    const iconBgColor = isStart ? 'var(--amber-3)' : isEnd ? 'var(--red-3)' : 'var(--accent-3)';
-    const iconColor = isStart ? 'var(--amber-11)' : isEnd ? 'var(--red-11)' : 'var(--accent-11)';
+    // Solid colors matching the dashboard theme
+    const iconBgColor = isStart ? '#fffbeb' : isEnd ? '#fef2f2' : '#f3f4f6';
+    const iconColor = isStart ? '#d97706' : isEnd ? '#dc2626' : '#4b5563';
+    const borderColor = selected ? '#f0ad44' : '#e2e8f0';
 
     return (
         <div style={{
             position: 'relative',
             padding: 0,
-            borderRadius: '8px',
-            border: `2px solid ${borderColor}`,
+            borderRadius: '14px',
+            border: `1px solid ${borderColor}`,
             width: '240px',
-            backgroundColor: 'var(--color-surface)',
-            boxShadow: selected ? '0 0 0 1px var(--accent-8), 0 4px 12px var(--black-a2)' : 'var(--shadow-2)',
+            backgroundColor: '#ffffff',
+            boxShadow: selected ? '0 10px 25px rgba(0, 0, 0, 0.05), 0 0 0 1px #f0ad44' : '0 4px 12px rgba(0, 0, 0, 0.02)',
             display: 'flex',
             flexDirection: 'column'
         }}>
             {/* Connection Handles */}
-            {!isStart && <Handle type="target" position={Position.Top} style={{ background: 'var(--accent-9)', border: 'none', width: '8px', height: '8px', top: '-5px' }} />}
-            {!isEnd && <Handle type="source" position={Position.Bottom} style={{ background: 'var(--accent-9)', border: 'none', width: '8px', height: '8px', bottom: '-5px' }} />}
+            {!isStart && <Handle type="target" position={Position.Top} style={{ background: '#cbd5e1', border: '2px solid #ffffff', width: '10px', height: '10px', top: '-5px' }} />}
+            {!isEnd && <Handle type="source" position={Position.Bottom} style={{ background: '#cbd5e1', border: '2px solid #ffffff', width: '10px', height: '10px', bottom: '-5px' }} />}
 
-            <div style={{ borderRadius: '6px', overflow: 'hidden', display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
+            {isStart && (
+                <div style={{
+                    position: 'absolute',
+                    top: '-10px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    backgroundColor: '#3b82f6',
+                    color: '#ffffff',
+                    fontSize: '8px',
+                    fontWeight: 800,
+                    padding: '2px 8px',
+                    borderRadius: '24px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    boxShadow: '0 2px 6px rgba(59, 130, 246, 0.2)',
+                    zIndex: 10
+                }}>
+                    Start Node
+                </div>
+            )}
+
+            <div style={{ borderRadius: '12px', overflow: 'hidden', display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
                 {/* Header */}
-                <Flex justify="between" align="center" style={{ padding: '8px 10px', backgroundColor: 'var(--gray-2)', borderBottom: '1px solid var(--gray-5)' }}>
+                <Flex justify="between" align="center" style={{ padding: '12px 14px 6px 14px' }}>
                     <Flex align="center" gap="2">
-                        <Box style={{ backgroundColor: iconBgColor, padding: '4px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
-                            <Icon size={14} color={iconColor} />
+                        <Box style={{ backgroundColor: iconBgColor, width: '26px', height: '26px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Icon size={12} color={iconColor} />
                         </Box>
-                        <Text size="2" weight="bold" style={{ color: 'var(--gray-12)' }}>
+                        <Text size="2" weight="bold" style={{ color: '#111827', fontFamily: 'var(--heading)' }}>
                             {data.label || 'Task Node'}
                         </Text>
                     </Flex>
-                    <Settings2 size={14} color="var(--gray-8)" style={{ cursor: 'pointer' }} />
+                    <Settings2 size={13} color="#94a3b8" style={{ cursor: 'pointer' }} />
                 </Flex>
 
                 {/* Body */}
-                <Flex direction="column" gap="1" style={{ padding: '10px', flexGrow: 1 }}>
-                    <Text size="1" weight="bold" style={{ textTransform: 'uppercase', letterSpacing: '0.05em', color: '#4b5563', fontSize: '9px' }}>
-                        Prompt
-                    </Text>
-                    <Text size="1" style={{ lineHeight: '1.4', color: '#374151', whiteSpace: 'pre-wrap', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                        {data.description || 'No prompt defined. Open settings to configure instructions for the AI.'}
-                    </Text>
+                <Flex direction="column" gap="2" style={{ padding: '4px 14px 14px 14px', flexGrow: 1 }}>
+                    {(isStart || data.first_message) && (
+                        <Flex direction="column" gap="0.5">
+                            <Text size="1" weight="bold" style={{ textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8', fontSize: '8px' }}>
+                                First Message
+                            </Text>
+                            <Text size="1" style={{ lineHeight: '1.4', color: '#374151', whiteSpace: 'pre-wrap', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', fontSize: '11px' }}>
+                                {data.first_message || 'Hey! How can I help you today?'}
+                            </Text>
+                        </Flex>
+                    )}
+                    <Flex direction="column" gap="0.5">
+                        <Text size="1" weight="bold" style={{ textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8', fontSize: '8px' }}>
+                            Prompt
+                        </Text>
+                        <Text size="1" style={{ lineHeight: '1.4', color: '#374151', whiteSpace: 'pre-wrap', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', fontSize: '11px' }}>
+                            {data.description || 'No prompt defined. Configure instructions in settings.'}
+                        </Text>
+                    </Flex>
                 </Flex>
             </div>
         </div>
@@ -112,19 +144,19 @@ export function AgentWorkflowBuilder(props: AgentWorkflowBuilderProps) {
 }
 
 const getEdgePillStyle = (): Partial<Edge> => ({
-    type: 'smoothstep',
-    style: { stroke: 'var(--accent-9)', strokeWidth: 2 },
+    type: 'default',
+    style: { stroke: '#cbd5e1', strokeWidth: 2 },
     animated: false,
-    labelStyle: { fill: '#ffffff', fontSize: 15, fontWeight: 800, fontFamily: 'system-ui, -apple-system, sans-serif' },
-    labelBgStyle: { fill: 'var(--accent-9)', stroke: 'var(--accent-11)', strokeWidth: 2, rx: 24, ry: 24 },
-    labelBgPadding: [20, 10] as [number, number]
+    labelStyle: { fill: '#4b5563', fontSize: 10, fontWeight: 600, fontFamily: 'var(--sans)' },
+    labelBgStyle: { fill: '#f3f4f6', stroke: '#e5e7eb', strokeWidth: 1, rx: 6, ry: 6 },
+    labelBgPadding: [8, 5] as [number, number]
 });
 
 function AgentWorkflowBuilderInternal({ initialNodesData, onSaveData, activeNodeId, agentId }: AgentWorkflowBuilderProps) {
     const loadNodes = (nds: Node[]) => nds.map(n => ({ ...n, type: 'customTask' }));
     const loadEdges = (eds: Edge[]) => eds.map(e => ({
         ...e,
-        ...(e.label ? getEdgePillStyle() : { type: 'smoothstep', style: { stroke: 'var(--accent-9)', strokeWidth: 2 } })
+        ...(e.label ? getEdgePillStyle() : { type: 'default', style: { stroke: '#cbd5e1', strokeWidth: 2 } })
     }));
 
     const [nodes, setNodes, onNodesChange] = useNodesState(loadNodes(initialNodesData?.nodes || initialNodes));
@@ -195,8 +227,8 @@ function AgentWorkflowBuilderInternal({ initialNodesData, onSaveData, activeNode
         (params: Connection) => setEdges((eds) => addEdge({
             ...params,
             animated: false,
-            type: 'smoothstep',
-            style: { stroke: '#4b5563', strokeWidth: 2 }
+            type: 'default',
+            style: { stroke: '#cbd5e1', strokeWidth: 2 }
         }, eds)),
         [setEdges]
     );
@@ -324,7 +356,7 @@ function AgentWorkflowBuilderInternal({ initialNodesData, onSaveData, activeNode
                     onPaneClick={onPaneClick}
                     onNodeDoubleClick={onNodeDoubleClick}
                     onEdgeDoubleClick={onEdgeDoubleClick}
-                    defaultEdgeOptions={{ type: 'smoothstep', style: { stroke: 'var(--accent-9)', strokeWidth: 2 } }}
+                    defaultEdgeOptions={{ type: 'default', style: { stroke: '#cbd5e1', strokeWidth: 2 } }}
                     minZoom={0.5}
                     maxZoom={1.8}
                     fitView
@@ -337,7 +369,7 @@ function AgentWorkflowBuilderInternal({ initialNodesData, onSaveData, activeNode
                     selectionOnDrag={interactionMode === 'select'}
                     selectionMode={SelectionMode.Partial}
                 >
-                    <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="var(--gray-a6)" />
+                    <Background variant={BackgroundVariant.Dots} gap={18} size={1} color="#94a3b8" style={{ backgroundColor: 'rgba(240, 240, 240)' }} />
                     <MiniMap nodeColor={(n) => {
                         if (n.type === 'input') return 'var(--amber-9)';
                         if (n.type === 'output') return 'var(--red-9)';
@@ -348,10 +380,10 @@ function AgentWorkflowBuilderInternal({ initialNodesData, onSaveData, activeNode
                     <Panel position="bottom-center" className="custom-tool-panel">
                         <Flex gap="0" align="center" style={{ 
                             backgroundColor: 'white', 
-                            padding: '4px 6px', 
-                            borderRadius: '8px', 
-                            border: '1px solid var(--gray-5)',
-                            boxShadow: 'var(--shadow-4)',
+                            padding: '6px 12px', 
+                            borderRadius: '9999px', 
+                            border: '1px solid #e2e8f0',
+                            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.05)',
                             color: '#111827'
                         }}>
                             {/* Group 1: Navigation */}
@@ -467,6 +499,22 @@ function AgentWorkflowBuilderInternal({ initialNodesData, onSaveData, activeNode
                                             const newLabel = e.target.value;
                                             setNodes(nds => nds.map(n => n.id === selectedNode.id ? { ...n, data: { ...n.data, label: newLabel } } : n));
                                             setSelectedNode(prev => prev ? { ...prev, data: { ...prev.data, label: newLabel } } : null);
+                                        }}
+                                    />
+                                </Flex>
+
+                                <Flex direction="column" gap="1">
+                                    <Text size="2" weight="bold">First Message (Greeting)</Text>
+                                    <Text size="1" style={{ color: '#64748b' }}>The greeting message the agent speaks first when transitioning to this node.</Text>
+                                    <TextArea
+                                        size="2"
+                                        placeholder="e.g. Hello! Welcome to our store. How can I help you today?"
+                                        value={selectedNode.data?.first_message as string || ''}
+                                        style={{ height: '80px' }}
+                                        onChange={(e) => {
+                                            const newFirstMsg = e.target.value;
+                                            setNodes(nds => nds.map(n => n.id === selectedNode.id ? { ...n, data: { ...n.data, first_message: newFirstMsg } } : n));
+                                            setSelectedNode(prev => prev ? { ...prev, data: { ...prev.data, first_message: newFirstMsg } } : null);
                                         }}
                                     />
                                 </Flex>
